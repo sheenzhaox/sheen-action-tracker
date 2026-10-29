@@ -6,7 +6,7 @@
 
 - **阶段**：**P1 本地原型进行中**（2026-10-30 起）。P0 设计 v0.3 + UI/UX v0.2 已定稿；Q1–Q13 全部回应；UI 方案 **C** + shadcn/ui + Tailwind（ADR-014）。
 - **P1 进度**：脚手架 ✅（pnpm monorepo、Worker `/api/health`、诊断面板，typecheck / test / build 通过）→ 下一步 iPhone 诊断与 sample1 端到端（见"恢复项目"第 5 步）。
-- **云资源**：无；未部署。代码在公开 GitHub 仓库 [sheenzhaox/sheen-action-tracker](https://github.com/sheenzhaox/sheen-action-tracker)（`main`）
+- **云资源**：1 个 Worker `action-tracker`，地址 https://action-tracker.sheenzhaox.workers.dev（2026-10-30 部署，用户授权；无 D1 / R2 / Access）。代码在公开 GitHub 仓库 [sheenzhaox/sheen-action-tracker](https://github.com/sheenzhaox/sheen-action-tracker)（`main`）
 - **UI 原型**：界面只做英文；shadcn 风格**已选 [C · Mobile focus](designs/mockups/mock-ui-shadcn-c.html)**（A [Workbench](designs/mockups/mock-ui-shadcn.html) / B [Library + Session](designs/mockups/mock-ui-shadcn-b.html) 仅作参考）（见 [08 第 11.2 节](designs/08-ui-ux.md)）；**骨架画在真实身体上**（C 的单腿蹲已用 sample1 真实视频 + 离线 MediaPipe 结果），A/B 与网球模式仍为合成示意。
 - **设计文档**：[designs/README.md](designs/README.md)
 
@@ -27,7 +27,7 @@
    - 之前用的 venv 在会话临时目录里，不保证还在。
 5. **运行应用**（仓库根目录）：`corepack pnpm install` → `corepack pnpm dev`（http://localhost:5173）；检查 `corepack pnpm typecheck`、`corepack pnpm test`、`corepack pnpm build`。细节和本机注意事项（PATH 中无 pnpm、TLS 拦截）见 [AGENTS.md](AGENTS.md)"仓库结构与工具"。
 6. **当前下一步（按顺序）**：
-   1. **iPhone 上跑诊断面板**：需要 HTTPS。方案待定：`vite dev --host` + 本地自签证书，或 `cloudflared` 临时隧道（不创建云资源的方式优先；隧道需用户同意）。记录 HEVC Main10 解码、WebGPU、OPFS、Wake Lock 结果。
+   1. **iPhone 上跑诊断面板**：用 Safari 打开 https://action-tracker.sheenzhaox.workers.dev → "Copy report" → 结果贴回日志。重点看 HEVC Main10 解码、WebGPU、OPFS、Wake Lock、存储配额。
    2. **sample1 端到端**：mp4box.js 解封装 + WebCodecs 解码（Web Worker）→ `pose-mediapipe`（tasks-vision 1.2.0，模型自托管）→ 后处理 → canvas 叠加（MASTER 3.3）→ PTRK + manifest 写入 OPFS；在 iPhone 上记录各阶段耗时。
    3. 正面单腿蹲测量（髋下降、膝 FPPA）作为管线验收，fixtures 用 sample1 的 PTRK + 人工标注。
    4. 网球素材到位后（3–5 段，要求见 [03 第 5.5 节](designs/03-analysis-packs.md)）实现 `tennis.groundstroke` 检测并把 C 的网球模式换成真实叠加。
@@ -49,10 +49,25 @@
 | Q11 | ~~小团队全量云同步时 R2 容量不够怎么办？~~（30 s 分析约 3–4 MB；可选：①云端只存 raw PTRK + manifest + 报告；②手动"保存到云端"；③付费 R2） | P3 同步策略、配额默认值 | ✅ **已确认（2026-10-29）：先不管**；保留 1 GB 默认配额，P3 实施前或 v2 公开前再定 |
 | Q12 | ~~首个网球包的范围与素材~~ | P1 分析包、labels 与 fixtures | ✅ **已确认（2026-10-30）**：① 先做正手 + 反手，发球放 P2；② 持拍手因人而异 → 运动员档案字段，大多数双手反手（ADR-015）；③ 近期没有网球素材，P1 先只用 sample1，素材到位后再做检测器 |
 | Q13 | ~~界面语言与配色~~ | 文案管理、P1 工作量 | ✅ **已确认（2026-10-29）：只做英文界面**；偏好 shadcn 风格，布局/风格已选 **C · Mobile focus**；配色暂保持橙色主色 + 深色默认 |
-| Q14 | iPhone 上如何通过 HTTPS 打开本地开发服务器？①`vite dev --host` + 本地自签证书（需在 iPhone 安装并信任根证书）；②`cloudflared` 临时隧道（无需账号资源，但流量经 Cloudflare） | P1 iPhone 诊断与性能实测 | 倾向 ①，待用户选择 |
+| Q14 | ~~iPhone 上如何通过 HTTPS 打开开发版？~~ | P1 iPhone 诊断与性能实测 | ✅ **已确认（2026-10-30）：部署到 workers.dev**，iPhone 直接打开线上地址 |
 | Q15 | 开发环境：是否在系统上启用 `pnpm`（`corepack enable pnpm`）？~~何时做第一次 git 提交？~~ | 日常命令 | 暂用 `corepack pnpm ...`；git 部分 ✅ 2026-10-30 已提交并推送到公开仓库 |
 
 ## 日志
+
+### 2026-10-30 · 首次部署到 workers.dev（Q14）
+
+- 用户选择用 workers.dev 给 iPhone 提供 HTTPS，并明确授权部署。
+- Wrangler 账号：`sheenzhaox@gmail.com`（Account ID `1f19e6fe…`，只有这一个账号）。部署前确认没有同名 Worker，dry run 显示没有任何绑定。
+- `wrangler deploy` 上传 Worker（55.6 KiB，gzip 15.1 KiB，启动 2 ms）和 3 个静态文件 → https://action-tracker.sheenzhaox.workers.dev（Version `a8a30cbb`）。
+- 线上验证：
+  - `/api/health` 返回 200，`/api/analyses` 返回 401，SPA 深链接返回 200。
+  - 桌面浏览器诊断面板无控制台错误；Secure context 显示 Supported。
+- 现状与安全：
+  - 页面公开访问（匿名用户可在本地使用）。
+  - 除 health 外的 `/api/*` 一律返回 401（fail closed），所以暂时不需要 Access。实现带数据的 API 前，必须先配 Access 应用（workers.dev 主机名 + `/api` 路径）并实现 JWT 校验。
+  - 没有 D1、R2、secret。
+- 本机网络有 TLS 拦截：wrangler 用 `NODE_USE_SYSTEM_CA=1` 读取 Windows 证书库，没有关闭 TLS 校验。
+- 下一步：用户在 iPhone Safari 上打开地址 → "Copy report" → 把结果贴回来，据此决定解码路线（WebCodecs HEVC 还是 `<video>` 回退）和推理用 GPU 还是 CPU。
 
 ### 2026-10-30 · 创建 GitHub 仓库并首次推送
 

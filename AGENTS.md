@@ -6,7 +6,7 @@ AI 编码代理（Copilot、Claude、Codex 等）在本仓库工作时必须遵�
 
 **Action Tracker**：网页版运动动作分析工具。浏览器把运动视频转换成人体骨架（MediaPipe Pose Landmarker），再由可插拔的运动分析包（网球、健身）输出次数、阶段、关节角度、节奏，以及每个指标的状态。**v1 只做测量，不做动作纠错**（ADR-012）。Cloudflare（Workers Free）只负责托管、鉴权和轻量数据同步。
 
-- **当前阶段：P1 原型**（2026-10-30 起）。本地脚手架已建立并通过 typecheck / test / build；尚无云资源，未部署。
+- **当前阶段：P1 原型**（2026-10-30 起）。本地脚手架通过 typecheck / test / build；已部署 1 个 Worker 到 workers.dev（仅静态页 + `/api/health`，无 D1 / R2 / Access）。
 - 设计文档入口：[designs/README.md](designs/README.md)
 - 项目思考与进展日志：[workflow.md](workflow.md)
 
@@ -95,6 +95,8 @@ corepack pnpm test             # 所有包 vitest run（含 Worker 测试）
 corepack pnpm build            # apps/web 生产构建（不部署）
 corepack pnpm dev              # 本地开发 http://localhost:5173（SPA + Worker 同一端口）
 ```
+
+- **部署**（只有用户在当前对话明确要求时才可执行）：在 `apps/web` 下运行 `corepack pnpm build`，然后 `$env:NODE_USE_SYSTEM_CA="1"; npx wrangler deploy`，部署到 https://action-tracker.sheenzhaox.workers.dev（账号 sheenzhaox@gmail.com，Worker `action-tracker`）。部署前先 `--dry-run` 确认绑定。
 
 - 根脚本内部调用 `pnpm`；若 PATH 中没有 `pnpm`，先 `corepack enable pnpm`（或用 `--install-directory` 放到临时目录并加入 PATH）。
 - 本机网络有 TLS 拦截（自签名证书）：shadcn CLI 拉取 registry 失败，`vite dev` 打印 `Request.cf` 警告（无害）。**不要关闭 TLS 校验**；shadcn 组件手工按上游源码加入并注明来源。
