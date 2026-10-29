@@ -27,7 +27,7 @@
    - 之前用的 venv 在会话临时目录里，不保证还在。
 5. **运行应用**（仓库根目录）：`corepack pnpm install` → `corepack pnpm dev`（http://localhost:5173）；检查 `corepack pnpm typecheck`、`corepack pnpm test`、`corepack pnpm build`。细节和本机注意事项（PATH 中无 pnpm、TLS 拦截）见 [AGENTS.md](AGENTS.md)"仓库结构与工具"。
 6. **当前下一步（按顺序）**：
-   1. **iPhone 上跑诊断面板**：用 Safari 打开 https://action-tracker.sheenzhaox.workers.dev → "Copy report" → 结果贴回日志。重点看 HEVC Main10 解码、WebGPU、OPFS、Wake Lock、存储配额。
+   1. ~~iPhone 上跑诊断面板~~ ✅ 2026-10-30：全部关键能力可用（见日志"iPhone 诊断结果"）；之后在 Safari 上补测一次。
    2. **sample1 端到端**：mp4box.js 解封装 + WebCodecs 解码（Web Worker）→ `pose-mediapipe`（tasks-vision 1.2.0，模型自托管）→ 后处理 → canvas 叠加（MASTER 3.3）→ PTRK + manifest 写入 OPFS；在 iPhone 上记录各阶段耗时。
    3. 正面单腿蹲测量（髋下降、膝 FPPA）作为管线验收，fixtures 用 sample1 的 PTRK + 人工标注。
    4. 网球素材到位后（3–5 段，要求见 [03 第 5.5 节](designs/03-analysis-packs.md)）实现 `tennis.groundstroke` 检测并把 C 的网球模式换成真实叠加。
@@ -53,6 +53,38 @@
 | Q15 | 开发环境：是否在系统上启用 `pnpm`（`corepack enable pnpm`）？~~何时做第一次 git 提交？~~ | 日常命令 | 暂用 `corepack pnpm ...`；git 部分 ✅ 2026-10-30 已提交并推送到公开仓库 |
 
 ## 日志
+
+### 2026-10-30 · iPhone 诊断结果（首次真机）
+
+用户在 iPhone 上打开 workers.dev 地址，运行诊断后复制报告：
+
+| 项目 | 结果 |
+|---|---|
+| 系统 / 浏览器 | iOS 27.2，**Chrome for iOS**（CriOS 156，WebKit 内核） |
+| `/api/health` | ✅ 200 |
+| Secure context | ✅ |
+| Cross-origin isolated | ✗（未设 COOP/COEP；设计不依赖 `SharedArrayBuffer`，见 02 第 148 行，无影响） |
+| WebCodecs `VideoDecoder` | ✅ |
+| 解码 HEVC Main10 4K `hvc1.2.4.L153.B0` | ✅ `isConfigSupported` 通过 |
+| 解码 H.264 1080p | ✅ |
+| 编码 H.264 1080p（导出） | ✅ |
+| WebGPU adapter / WebGL 2 | ✅ / ✅ |
+| OffscreenCanvas / OPFS | ✅ / ✅ |
+| 存储配额 | 38.4 GiB（已用 0） |
+| Screen Wake Lock | ✅ |
+| `requestVideoFrameCallback` | ✅ |
+| CPU 核数 / 内存 | 4（WebKit 上报值，可能被限制）/ 未知（WebKit 不提供 `deviceMemory`） |
+
+**结论与取舍**：
+- **解码走主路线**：mp4box.js 解封装 + WebCodecs 在 Web Worker 中解码 HEVC Main10。`<video>` + rVFC 保留为回退（也可用）。
+  - 注意：`isConfigSupported` 只说明这个配置能用，还要用 sample1 真实文件（HLG HDR + Dolby Vision、旋转 90°）实测：能否解码、颜色是否正常（10 bit HDR 转成 8 bit 给模型时的色调映射）、帧率。
+- **推理**：MediaPipe tasks-vision 的 GPU delegate 走 WebGL 2（可用），CPU（WASM）作回退。WebGPU 虽然可用，但 tasks-vision 目前不用它，先不依赖。
+- **存储**：OPFS 可用，配额充足（38 GiB），PTRK 和中间文件放 OPFS。
+- **长任务**：Wake Lock 可用，分析时保持亮屏。
+- 跨源隔离：暂不配置 COOP/COEP。只有以后需要多线程 WASM 时才加，并要先确认不影响自托管模型和资源的加载。
+- 这次用的是 iPhone 上的 Chrome。iOS 上所有浏览器都是 WebKit 内核，能力应该一致；验收以 Safari 为准，之后在 Safari 上补测一次。
+
+**下一步**：sample1 端到端。把 sample1.MOV 放在 iPhone 本地（相册或文件），在 App 中选取 → Worker 解码 → MediaPipe 推理 → canvas 叠加 → PTRK + manifest 写入 OPFS，并显示各阶段耗时。
 
 ### 2026-10-30 · 首次部署到 workers.dev（Q14）
 
