@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Action Tracker · Option B · Library + Session dashboard</title>
+  <style>
+    /* shadcn "lyra" feel: boxy, 2px radius, hairlines, technical numerals */
+    :root {
+      color-scheme: dark;
+      --background: #111113; --foreground: #fafafa; --card: #18181b; --popover: #1d1d21;
+      --muted: #232327; --muted-foreground: #b4b4bd; --border: #34343b;
+      --input: #6f6f7a; --primary: #f97316; --primary-foreground: #18181b;
+      --accent: #2a2a2f; --primary-text: #fdba74; --ring: #fdba74;
+      --valid: #86d9a8; --warning: #fcd177; --experimental: #d3b9f4;
+      --sidebar: #151517;
+      --radius: 2px; --left: #22d3ee; --right: #f97316; --select: #facc15;
+      --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+    }
+    [data-theme="light"] {
+      color-scheme: light;
+      --background: #f7f7f8; --foreground: #18181b; --card: #ffffff; --popover: #ffffff;
+      --muted: #efeff1; --muted-foreground: #595963; --border: #d6d6db;
+      --input: #777782; --primary: #ea580c; --primary-foreground: #18181b;
+      --accent: #e7e7eb; --primary-text: #9a3412; --ring: #9a3412;
+      --valid: #166534; --warning: #854d0e; --experimental: #6b21a8;
+      --sidebar: #fbfbfc;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body { background: var(--background); color: var(--foreground); font: 14px/1.5 var(--font); -webkit-text-size-adjust: 100%; }
+    button, input, select { font: inherit; color: inherit; }
+    button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 22px; font-weight: 650; letter-spacing: -.01em; }
+    h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+    .num, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    .muted { color: var(--muted-foreground); }
+    .tiny { font-size: 12px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .icon { display: inline-flex; flex: none; }
+    .icon svg { width: 18px; height: 18px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--input); border-radius: var(--radius); background: var(--card); font-weight: 550; white-space: nowrap; transition: background-color 150ms; }
+    .button:hover { background: var(--accent); }
+    .button.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }
+    .button.primary:hover { opacity: .9; }
+    .button.ghost { background: transparent; border-color: transparent; }
+    .button.ghost:hover { background: var(--accent); }
+    .button.icon-only { width: 44px; padding: 0; }
+    .badge { display: inline-flex; align-items: center; gap: 5px; padding: 1px 7px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 11px; font-weight: 600; white-space: nowrap; line-height: 1.7; }
+    .badge .icon svg { width: 13px; height: 13px; }
+    .badge.solid { background: var(--muted); }
+    .valid { color: var(--valid); } .warning { color: var(--warning); } .experimental { color: var(--experimental); } .unavailable { color: var(--muted-foreground); }
+    .separator-v { width: 1px; height: 22px; background: var(--border); }
+
+    /* Sidebar (shadcn sidebar-07: collapsible to icon rail) */
+    .shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; transition: grid-template-columns 200ms; }
+    .shell[data-collapsed="true"] { grid-template-columns: 60px minmax(0, 1fr); }
+    .sidebar { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 6px; padding: 12px 8px; background: var(--sidebar); border-right: 1px solid var(--border); overflow: hidden; }
+    .sidebar-brand { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 8px; font-weight: 700; white-space: nowrap; }
+    .brand-mark { width: 28px; height: 28px; flex: none; display: grid; place-items: center; background: var(--primary); color: var(--primary-foreground); border-radius: var(--radius); }
+    .brand-mark svg { width: 18px; height: 18px; }
+    .sidebar-group-label { padding: 14px 10px 4px; font-size: 11px; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
+    .sidebar-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 10px; border: 0; border-radius: var(--radius); background: transparent; text-align: left; white-space: nowrap; }
+    .sidebar-item:hover { background: var(--accent); }
+    .sidebar-item[aria-current="page"] { background: var(--accent); box-shadow: inset 2px 0 var(--primary); font-weight: 600; }
+    .sidebar-item .count { margin-left: auto; font-size: 11px; color: var(--muted-foreground); }
+    .sidebar-footer { margin-top: auto; padding: 10px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted-foreground); white-space: nowrap; }
+    .shell[data-collapsed="true"] .label, .shell[data-collapsed="true"] .sidebar-group-label, .shell[data-collapsed="true"] .count, .shell[data-collapsed="true"] .sidebar-footer span { display: none; }
+    .shell[data-collapsed="true"] .sidebar-item { justify-content: center; padding: 0; }
+
+    .topbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; min-height: 56px; padding: max(6px, env(safe-area-inset-top)) 16px 6px; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--background) 92%, transparent); backdrop-filter: blur(6px); }
+    .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted-foreground); min-width: 0; }
+    .breadcrumb .current { color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .breadcrumb button { border: 0; background: none; padding: 0; color: inherit; min-height: 44px; }
+    .topbar .spacer { flex: 1; }
+    main { padding: 20px 20px 40px; max-width: 1480px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 16px; }
+    .page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+    .page-head p { margin-top: 4px; color: var(--muted-foreground); font-size: 13px; }
+    .page-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); min-width: 0; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); min-height: 52px; }
+    .card-header .desc { font-size: 12px; color: var(--muted-foreground); }
+    .card-content { padding: 14px; }
+    .card-footer { padding: 10px 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted-foreground); display: flex; gap: 8px; align-items: center; }
+
+    /* Library */
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    .input-wrap { position: relative; flex: 1 1 220px; max-width: 340px; }
+    .input-wrap .icon { position: absolute; left: 12px; top: 13px; color: var(--muted-foreground); }
+    .input { width: 100%; min-height: 44px; padding: 0 12px 0 38px; border: 1px solid var(--input); border-radius: var(--radius); background: var(--background); }
+    select.input { padding-left: 12px; width: auto; }
+    .toggle-group { display: inline-flex; border: 1px solid var(--input); border-radius: var(--radius); overflow: hidden; }
+    .toggle-group label { position: relative; }
+    .toggle-group input { position: absolute; opacity: 0; inset: 0; }
+    .toggle-group span { display: inline-flex; align-items: center; min-height: 42px; padding: 0 14px; border-right: 1px solid var(--border); font-weight: 550; color: var(--muted-foreground); }
+    .toggle-group label:last-child span { border-right: 0; }
+    .toggle-group input:checked + span { background: var(--accent); color: var(--foreground); box-shadow: inset 0 -2px var(--primary); }
+    .toggle-group input:focus-visible + span { outline: 2px solid var(--ring); outline-offset: -2px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-foreground); padding: 10px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr[data-href] { cursor: pointer; }
+    tbody tr:hover { background: var(--muted); }
+    tbody tr[aria-selected="true"] { background: var(--accent); box-shadow: inset 2px 0 var(--primary); }
+    .row-title { font-weight: 600; }
+    .row-sub { font-size: 12px; color: var(--muted-foreground); }
+    .progress { width: 120px; height: 6px; background: var(--muted); border-radius: var(--radius); overflow: hidden; }
+    .progress > i { display: block; height: 100%; width: 62%; background: var(--primary); }
+    .table-scroll { overflow-x: auto; }
+
+    /* Session dashboard */
+    .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .kpi { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+    .kpi-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 8px; font-size: 12px; color: var(--muted-foreground); }
+    .kpi-value { font: 600 28px/1.1 var(--mono); }
+    .kpi-value small { font-size: 12px; font-weight: 500; color: var(--muted-foreground); margin-left: 4px; }
+    .kpi-note { font-size: 12px; color: var(--muted-foreground); }
+    .dash { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 12px; }
+    .viewer { position: relative; aspect-ratio: 16 / 9; background: #0b0b0d; overflow: hidden; }
+    .viewer canvas { width: 100%; height: 100%; display: block; }
+    .viewer .tag { position: absolute; padding: 2px 7px; background: #000c; color: #fafafa; border: 1px solid #ffffff2e; font: 11px var(--mono); }
+    .viewer .tag.tl { top: 10px; left: 10px; } .viewer .tag.tr { top: 10px; right: 10px; } .viewer .tag.bl { bottom: 10px; left: 10px; }
+    .transport { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+    .transport .time { font: 13px var(--mono); margin: 0 8px; }
+    .transport input[type=range] { flex: 1 1 200px; accent-color: var(--primary); min-height: 44px; }
+    .metric-list { display: flex; flex-direction: column; }
+    .metric { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 11px 14px; border-bottom: 1px solid var(--border); }
+    .metric:last-child { border-bottom: 0; }
+    .metric .name { font-size: 13px; }
+    .metric .value { font: 600 18px var(--mono); text-align: right; }
+    .metric .value small { font-size: 11px; color: var(--muted-foreground); font-weight: 500; margin-left: 3px; }
+    .metric .note { font-size: 12px; color: var(--muted-foreground); }
+    .chart-wrap { height: 220px; position: relative; }
+    .chart-wrap canvas { width: 100%; height: 100%; display: block; }
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted-foreground); }
+    .legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 6px; }
+    .quality-row { display: flex; justify-content: space-between; gap: 8px; padding: 9px 14px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .quality-row:last-child { border-bottom: 0; }
+    .alert { display: flex; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-left: 3px solid var(--warning); border-radius: var(--radius); background: var(--card); }
+    .alert .icon { color: var(--warning); }
+    .alert h3 { font-size: 13px; }
+    .alert p { font-size: 12px; color: var(--muted-foreground); }
+
+    dialog { border: 1px solid var(--border); border-radius: var(--radius); background: var(--popover); color: var(--foreground); padding: 0; width: min(440px, calc(100vw - 24px)); }
+    dialog::backdrop { background: #0009; }
+    .dialog-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    .dialog-body { padding: 14px; display: flex; flex-direction: column; gap: 12px; font-size: 13px; }
+    .dialog-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border); }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-weight: 600; font-size: 13px; }
+    #toast { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); padding: 10px 14px; background: var(--foreground); color: var(--background); border-radius: var(--radius); font-size: 13px; z-index: 20; }
+    footer.page-foot { font-size: 12px; color: var(--muted-foreground); display: flex; gap: 8px; align-items: center; }
+
+    @media (max-width: 1100px) {
+      .dash { grid-template-columns: minmax(0, 1fr); }
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .shell, .shell[data-collapsed="true"] { grid-template-columns: minmax(0, 1fr); }
+      .sidebar { position: fixed; inset: 0 auto 0 0; width: 272px; z-index: 30; transform: translateX(-100%); transition: transform 200ms; box-shadow: 0 0 0 100vmax transparent; padding-top: max(12px, env(safe-area-inset-top)); }
+      .shell[data-mobile-open="true"] .sidebar { transform: none; box-shadow: 0 0 0 100vmax #0009; }
+      .shell .label, .shell .sidebar-group-label, .shell .count, .shell .sidebar-footer span { display: revert !important; }
+      .shell .sidebar-item { justify-content: flex-start !important; padding: 0 10px !important; }
+      main { padding: 14px 12px 32px; }
+      .hide-sm { display: none; }
+      td, th { padding: 10px; }
+      .viewer { aspect-ratio: 4 / 3; }
+      .kpi-value { font-size: 24px; }
+      .topbar .option-badge { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+  </style>
+</head>
+<body>
+<div class="shell" id="shell" data-collapsed="false" data-mobile-open="false">
+  <aside class="sidebar" id="sidebar" aria-label="App navigation">
+    <div class="sidebar-brand"><span class="brand-mark"><span class="icon" data-icon="chart-line"></span></span><span class="label">Action Tracker</span></div>
+    <p class="sidebar-group-label">Workspace</p>
+    <button class="sidebar-item" data-nav="library" aria-current="page" title="Library"><span class="icon" data-icon="list"></span><span class="label">Library</span><span class="count num">05</span></button>
+    <button class="sidebar-item" data-nav="session" title="Session"><span class="icon" data-icon="chart-line"></span><span class="label">Session</span></button>
+    <button class="sidebar-item" data-open="import-dialog" title="Import video"><span class="icon" data-icon="upload-simple"></span><span class="label">Import video</span></button>
+    <p class="sidebar-group-label">Recipes</p>
+    <button class="sidebar-item" data-filter="tennis" title="Tennis groundstrokes"><span class="icon" data-icon="circle-dot"></span><span class="label">Tennis · Groundstrokes</span></button>
+    <button class="sidebar-item" data-filter="gym" title="Gym · Skeleton only"><span class="icon" data-icon="barbell"></span><span class="label">Gym · Skeleton only</span></button>
+    <button class="sidebar-item" data-open="settings-dialog" title="Settings"><span class="icon" data-icon="sliders-horizontal"></span><span class="label">Settings</span></button>
+    <div class="sidebar-footer"><span class="icon" data-icon="check-circle" style="color: var(--valid); vertical-align: middle"></span> <span>Local only · nothing uploaded</span></div>
+  </aside>
+
+  <div class="inset">
+    <header class="topbar">
+      <button class="button ghost icon-only" id="sidebar-trigger" aria-label="Toggle sidebar" aria-expanded="true"><span class="icon" data-icon="sidebar"></span></button>
+      <span class="separator-v"></span>
+      <nav class="breadcrumb" aria-label="Breadcrumb"><button data-nav="library">Library</button><span class="icon" data-icon="caret-right"></span><span class="current" id="crumb-current">All recordings</span></nav>
+      <span class="spacer"></span>
+      <span class="badge option-badge">Option B · Library + Session</span>
+      <button class="button ghost icon-only" id="theme-button" aria-label="Switch theme"><span class="icon" data-icon="sun"></span></button>
+    </header>
+
+    <main>
+      <!-- LIBRARY -->
+      <section id="view-library" aria-labelledby="library-title">
+        <div class="page-head">
+          <div><h1 id="library-title">Library</h1><p>Recordings analysed on this device. Demo data — no real analysis has run.</p></div>
+          <div class="page-actions"><button class="button primary" data-open="import-dialog"><span class="icon" data-icon="upload-simple"></span>Import video</button></div>
+        </div>
+        <div class="card" style="margin-top: 16px">
+          <div class="toolbar">
+            <div class="input-wrap"><span class="icon" data-icon="search"></span><label class="sr-only" for="search">Search recordings</label><input class="input" id="search" type="search" placeholder="Search recordings…"></div>
+            <div class="toggle-group" role="radiogroup" aria-label="Recipe filter">
+              <label><input type="radio" name="recipe" value="all" checked><span>All</span></label>
+              <label><input type="radio" name="recipe" value="tennis"><span>Tennis</span></label>
+              <label><input type="radio" name="recipe" value="gym"><span>Gym</span></label>
+            </div>
+            <label class="sr-only" for="status-filter">Status</label>
+            <select class="input" id="status-filter"><option value="all">Any status</option><option value="analysed">Analysed</option><option value="warning">Needs review</option><option value="processing">Processing</option></select>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <caption class="sr-only">Recordings</caption>
+              <thead><tr><th>Recording</th><th class="hide-sm">Recipe</th><th class="hide-sm">View</th><th>Duration</th><th class="hide-sm">Events</th><th>Status</th></tr></thead>
+              <tbody id="library-body"></tbody>
+            </table>
+          </div>
+          <div class="card-footer"><span class="icon" data-icon="check-circle" style="color: var(--valid)"></span><span id="library-count">5 recordings</span><span>· Videos stay on this device</span></div>
+        </div>
+      </section>
+
+      <!-- SESSION -->
+      <section id="view-session" hidden aria-labelledby="session-title">
+        <div class="page-head">
+          <div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap"><h1 id="session-title">Baseline groundstrokes · 01</h1><span class="badge solid">Demo data</span><span class="badge">Tennis · Groundstrokes</span></div>
+            <p class="num">29 Oct 2026 · Rear view · 28.4 s · 1080p · 60 fps · Right-handed</p>
+          </div>
+          <div class="page-actions">
+            <button class="button" id="export-button"><span class="icon" data-icon="download-simple"></span>Export JSON</button>
+            <button class="button" data-nav="library"><span class="icon" data-icon="arrow-left"></span>Library</button>
+          </div>
+        </div>
+
+        <div class="kpis" style="margin-top: 16px">
+          <div class="card kpi"><div class="kpi-top">Swings detected<span class="badge valid"><span class="icon" data-icon="check-circle"></span>Valid</span></div><div class="kpi-value">6<small>swings</small></div><div class="kpi-note">Forehand 4 · Backhand 2</div></div>
+          <div class="card kpi"><div class="kpi-top">Mean speed peak<span class="badge valid"><span class="icon" data-icon="check-circle"></span>Valid</span></div><div class="kpi-value">4.7<small>torso/s</small></div><div class="kpi-note">5 of 6 swings · wrist, not racket</div></div>
+          <div class="card kpi"><div class="kpi-top">Shoulder–hip separation<span class="badge experimental"><span class="icon" data-icon="flask"></span>Experimental</span></div><div class="kpi-value">18<small>deg</small></div><div class="kpi-note">2D projected · excluded from trends</div></div>
+          <div class="card kpi"><div class="kpi-top">Trunk lean<span class="badge unavailable"><span class="icon" data-icon="warning-circle"></span>Unavailable</span></div><div class="kpi-value">—</div><div class="kpi-note">No vertical reference</div></div>
+        </div>
+
+        <div class="dash" style="margin-top: 12px">
+          <div class="card">
+            <div class="card-header"><h2>Replay</h2><span class="desc">Skeleton illustration · not video</span></div>
+            <div class="viewer" id="viewer">
+              <canvas id="stage" role="img" aria-label="Synthetic tennis court with target-person skeleton; not real video"></canvas>
+              <span class="tag tl">REAR · TARGET 01</span><span class="tag tr" id="frame-tag">F 0648 / 1704</span><span class="tag bl" id="event-tag">SWING 03 · SPEED PEAK</span>
+            </div>
+            <div class="transport">
+              <button class="button ghost icon-only" id="prev" aria-label="Previous frame"><span class="icon" data-icon="skip-back"></span></button>
+              <button class="button icon-only" id="play" aria-label="Play"><span class="icon" data-icon="play"></span></button>
+              <button class="button ghost icon-only" id="next" aria-label="Next frame"><span class="icon" data-icon="skip-forward"></span></button>
+              <span class="time"><strong id="time-now">00:10.800</strong> <span class="muted">/ 00:28.400</span></span>
+              <label class="sr-only" for="scrub">Playback position</label>
+              <input id="scrub" type="range" min="0" max="1703" value="648">
+              <label class="sr-only" for="rate">Playback speed</label>
+              <select class="input" id="rate" style="min-height: 44px"><option value=".25">0.25×</option><option value=".5" selected>0.5×</option><option value="1">1×</option></select>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><div><h2 id="current-title">Swing 03 · Forehand</h2><div class="desc num" id="current-sub">Speed peak · 00:10.800</div></div><span class="badge">Image plane</span></div>
+            <div class="metric-list" id="metric-list"></div>
+            <div class="card-footer"><span class="icon" data-icon="warning-circle"></span>Speed peak is not ball contact. Measurements only — no technique judgement.</div>
+          </div>
+        </div>
+
+        <div class="dash" style="margin-top: 12px">
+          <div class="card">
+            <div class="card-header">
+              <h2>Joint signal</h2>
+              <div class="toggle-group" role="radiogroup" aria-label="Joint signal">
+                <label><input type="radio" name="signal" value="wrist" checked><span>Wrist speed</span></label>
+                <label><input type="radio" name="signal" value="elbow"><span>Elbow</span></label>
+                <label><input type="radio" name="signal" value="knee"><span>Knee</span></label>
+              </div>
+            </div>
+            <div class="card-content">
+              <div class="legend" style="margin-bottom: 8px"><span><i style="background: var(--right)"></i>Observed</span><span><i style="background: var(--right); opacity: .4"></i>Interpolated (40%)</span><span><i style="background: var(--muted-foreground); height: 8px; opacity: .35"></i>Insufficient observation</span><span>▲ Speed peak</span></div>
+              <div class="chart-wrap"><canvas id="chart" tabindex="0" role="img" aria-label="Joint signal chart; left and right arrow keys step frames"></canvas></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h2>Data quality</h2><span class="badge valid"><span class="icon" data-icon="check-circle"></span>Time trusted</span></div>
+            <div class="quality-row"><span>Target person tracked</span><span class="num">99.6%</span></div>
+            <div class="quality-row"><span>Key joints observed</span><span class="num">94.2%</span></div>
+            <div class="quality-row"><span>Interpolated frames</span><span class="num">3.1%</span></div>
+            <div class="quality-row"><span>Frame rate</span><span class="num">60.00 fps · constant</span></div>
+            <div class="quality-row"><span>Model</span><span class="num">pose_landmarker_full · demo</span></div>
+            <div class="card-content" style="padding-top: 6px"><div class="alert" role="note"><span class="icon" data-icon="warning-circle"></span><div><h3>Swing 05 · Insufficient observation</h3><p>Peak and angles are shown as “—”. Interpolation never makes a metric available.</p></div></div></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 12px">
+          <div class="card-header"><h2>Swings</h2><span class="desc">Select a row to jump to its speed peak</span></div>
+          <div class="table-scroll">
+            <table>
+              <caption class="sr-only">Swings and measurement status</caption>
+              <thead><tr><th>#</th><th>Type</th><th class="hide-sm">Speed-peak time</th><th>Wrist peak</th><th class="hide-sm">Knee flexion</th><th class="hide-sm">Elbow angle</th><th>Status</th></tr></thead>
+              <tbody id="events-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <footer class="page-foot" style="margin-top: 12px"><span class="icon" data-icon="check-circle"></span>tennis.groundstroke · sample recipe · not a real analysis · no network requests</footer>
+      </section>
+    </main>
+  </div>
+</div>
+
+<dialog id="import-dialog" aria-labelledby="import-title">
+  <div class="dialog-head"><h2 id="import-title">Import video</h2><button class="button ghost icon-only" data-close aria-label="Close"><span class="icon" data-icon="x"></span></button></div>
+  <div class="dialog-body">
+    <p class="muted">Video stays on this device. This mockup does not run pose analysis.</p>
+    <div class="field"><label for="file">Video file</label><input id="file" type="file" accept="video/*"><span class="tiny muted">Normal 60 fps · clips up to 30 s recommended</span></div>
+    <div class="field"><label for="recipe">Recipe</label><select class="input" id="recipe"><option>Tennis · Groundstrokes</option><option>Gym · Skeleton only</option></select></div>
+    <div class="field"><label for="hand">Racket hand</label><select class="input" id="hand"><option>Right</option><option>Left</option></select></div>
+  </div>
+  <div class="dialog-foot"><button class="button" data-close>Cancel</button><button class="button primary" data-close data-toast="Mockup only — nothing was imported">Analyse on device</button></div>
+</dialog>
+<dialog id="settings-dialog" aria-labelledby="settings-title">
+  <div class="dialog-head"><h2 id="settings-title">Settings</h2><button class="button ghost icon-only" data-close aria-label="Close"><span class="icon" data-icon="x"></span></button></div>
+  <div class="dialog-body">
+    <div class="quality-row" style="padding: 0"><span>MediaPipe</span><span class="muted">Not connected</span></div>
+    <div class="quality-row" style="padding: 0"><span>Cloud sync</span><span class="muted">Not connected</span></div>
+    <div class="quality-row" style="padding: 0"><span>Language</span><span>English</span></div>
+  </div>
+  <div class="dialog-foot"><button class="button primary" data-close>Done</button></div>
+</dialog>
+<div id="toast" role="status" hidden></div>
+
+<script>
+  const phosphor = {
+    play: 'M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z',
+    pause: 'M200,32H160a16,16,0,0,0-16,16V208a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V48A16,16,0,0,0,200,32Zm0,176H160V48h40ZM96,32H56A16,16,0,0,0,40,48V208a16,16,0,0,0,16,16H96a16,16,0,0,0,16-16V48A16,16,0,0,0,96,32Zm0,176H56V48H96Z',
+    'skip-back': 'M199.81,34a16,16,0,0,0-16.24.43L64,109.23V40a8,8,0,0,0-16,0V216a8,8,0,0,0,16,0V146.77l119.57,74.78A15.95,15.95,0,0,0,208,208.12V47.88A15.86,15.86,0,0,0,199.81,34ZM192,208,64.16,128,192,48.07Z',
+    'skip-forward': 'M200,32a8,8,0,0,0-8,8v69.23L72.43,34.45A15.95,15.95,0,0,0,48,47.88V208.12a16,16,0,0,0,24.43,13.43L192,146.77V216a8,8,0,0,0,16,0V40A8,8,0,0,0,200,32ZM64,207.93V48.05l127.84,80Z',
+    'upload-simple': 'M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0ZM93.66,77.66,120,51.31V144a8,8,0,0,0,16,0V51.31l26.34,26.35a8,8,0,0,0,11.32-11.32l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,93.66,77.66Z',
+    'download-simple': 'M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z',
+    sun: 'M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z',
+    moon: 'M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z',
+    'sliders-horizontal': 'M40,88H73a32,32,0,0,0,62,0h81a8,8,0,0,0,0-16H135a32,32,0,0,0-62,0H40a8,8,0,0,0,0,16Zm64-24A16,16,0,1,1,88,80,16,16,0,0,1,104,64ZM216,168H199a32,32,0,0,0-62,0H40a8,8,0,0,0,0,16h97a32,32,0,0,0,62,0h17a8,8,0,0,0,0-16Zm-48,24a16,16,0,1,1,16-16A16,16,0,0,1,168,192Z',
+    'check-circle': 'M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z',
+    'warning-circle': 'M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z',
+    'chart-line': 'M232,208a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V48a8,8,0,0,1,16,0v94.37L90.73,98a8,8,0,0,1,10.07-.38l58.81,44.11L218.73,90a8,8,0,1,1,10.54,12l-64,56a8,8,0,0,1-10.07.38L96.39,114.29,40,163.63V200H224A8,8,0,0,1,232,208Z',
+    x: 'M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z',
+    'caret-right': 'M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z',
+    flask: 'M221.69,199.77,160,96.92V40h8a8,8,0,0,0,0-16H88a8,8,0,0,0,0,16h8V96.92L34.31,199.77A16,16,0,0,0,48,224H208a16,16,0,0,0,13.72-24.23ZM110.86,103.25A7.93,7.93,0,0,0,112,99.14V40h32V99.14a7.93,7.93,0,0,0,1.14,4.11L183.36,167c-12,2.37-29.07,1.37-51.75-10.11-15.91-8.05-31.05-12.32-45.22-12.81ZM48,208l28.54-47.58c14.25-1.74,30.31,1.85,47.82,10.72,19,9.61,35,12.88,48,12.88a69.89,69.89,0,0,0,19.55-2.7L208,208Z'
+  };
+  // Simple line icons (24px grid) for glyphs not in the Phosphor subset above
+  const strokes = {
+    list: '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+    sidebar: '<rect x="3" y="4" width="18" height="16" rx="1"/><path d="M9 4v16"/>',
+    'arrow-left': '<path d="M19 12H5M11 18l-6-6 6-6"/>',
+    'circle-dot': '<circle cx="12" cy="12" r="8"/><path d="M5 9c4 1.5 10 1.5 14 0M5 15c4-1.5 10-1.5 14 0"/>',
+    barbell: '<path d="M6 7v10M3.5 9.5v5M18 7v10M20.5 9.5v5M6 12h12"/>'
+  };
+  const byId = id => document.getElementById(id);
+  function icon(name) {
+    if (strokes[name]) return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${strokes[name]}</svg>`;
+    return `<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="${phosphor[name] || phosphor['warning-circle']}"/></svg>`;
+  }
+  function paintIcons(root = document) { root.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = icon(el.dataset.icon); el.setAttribute('aria-hidden', 'true'); }); }
+  paintIcons();
+  function toast(message) { const t = byId('toast'); t.textContent = message; t.hidden = false; clearTimeout(toast.timer); toast.timer = setTimeout(() => { t.hidden = true; }, 2800); }
+  function badge(status, reason) {
+    const map = { valid: ['check-circle', 'Valid'], experimental: ['flask', 'Experimental'], unavailable: ['warning-circle', 'Unavailable'], warning: ['warning-circle', 'Needs review'], processing: ['upload-simple', 'Processing'], skeleton: ['check-circle', 'Skeleton only'], analysed: ['check-circle', 'Analysed'] };
+    const [i, label] = map[status];
+    return `<span class="badge ${(status === 'skeleton' || status === 'analysed') ? 'valid' : status}" ${reason ? `title="${reason}"` : ''}>${icon(i).replace('<svg', '<svg class="icon" style="width:13px;height:13px"')}${label}</span>`;
+  }
+
+  /* ---------- Library ---------- */
+  const recordings = [
+    { id: 1, name: 'Baseline groundstrokes · 01', sub: 'Today · 1080p · 60 fps', recipe: 'tennis', recipeLabel: 'Tennis · Groundstrokes', view: 'Rear', duration: '00:28.4', events: '6 swings', status: 'analysed' },
+    { id: 2, name: 'Side-on forehands · 02', sub: 'Today · 1080p · 60 fps', recipe: 'tennis', recipeLabel: 'Tennis · Groundstrokes', view: 'Side', duration: '00:24.0', events: '6 swings', status: 'analysed' },
+    { id: 3, name: 'sample1.MOV', sub: 'Yesterday · 1080p · 60 fps', recipe: 'gym', recipeLabel: 'Gym · Skeleton only', view: 'Side', duration: '00:14.2', events: '3 reps', status: 'skeleton' },
+    { id: 4, name: 'Cross-court rally · 03', sub: '27 Oct · 4K · variable fps', recipe: 'tennis', recipeLabel: 'Tennis · Groundstrokes', view: 'Rear', duration: '00:29.7', events: '8 swings', status: 'warning', reason: 'Time not trusted' },
+    { id: 5, name: 'Backhand drill · 04', sub: 'Now · 1080p · 60 fps', recipe: 'tennis', recipeLabel: 'Tennis · Groundstrokes', view: 'Rear', duration: '00:21.5', events: '—', status: 'processing' }
+  ];
+  function renderLibrary() {
+    const q = byId('search').value.trim().toLowerCase();
+    const recipe = document.querySelector('input[name="recipe"]:checked').value;
+    const status = byId('status-filter').value;
+    const rows = recordings.filter(r => (recipe === 'all' || r.recipe === recipe) && (status === 'all' || r.status === status || (status === 'analysed' && r.status === 'skeleton')) && (!q || r.name.toLowerCase().includes(q)));
+    byId('library-body').innerHTML = rows.map(r => {
+      const statusCell = r.status === 'processing'
+        ? `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px">${badge('processing')}<div class="progress" role="progressbar" aria-label="Pose analysis progress" aria-valuenow="62" aria-valuemin="0" aria-valuemax="100"><i></i></div></div>`
+        : r.status === 'warning' ? `${badge('warning')}<div class="row-sub">${r.reason}</div>` : badge(r.status);
+      return `<tr data-href="${r.id}" tabindex="0"><td><div class="row-title">${r.name}</div><div class="row-sub">${r.sub}</div></td><td class="hide-sm">${r.recipeLabel}</td><td class="hide-sm">${r.view}</td><td class="num">${r.duration}</td><td class="hide-sm">${r.events}</td><td>${statusCell}</td></tr>`;
+    }).join('') || `<tr><td colspan="6" class="muted" style="padding:28px;text-align:center">No recordings match these filters.</td></tr>`;
+    byId('library-count').textContent = `${rows.length} of ${recordings.length} recordings`;
+    byId('library-body').querySelectorAll('tr[data-href]').forEach(tr => {
+      const open = () => { const r = recordings.find(x => String(x.id) === tr.dataset.href); if (r.id === 1) navigate('session'); else toast(r.status === 'processing' ? 'Still processing on device' : 'Mockup: only “Baseline groundstrokes · 01” has demo data'); };
+      tr.addEventListener('click', open); tr.addEventListener('keydown', e => { if (e.key === 'Enter') open(); });
+    });
+  }
+  byId('search').addEventListener('input', renderLibrary);
+  byId('status-filter').addEventListener('change', renderLibrary);
+  document.querySelectorAll('input[name="recipe"]').forEach(i => i.addEventListener('change', renderLibrary));
+  document.querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', () => { navigate('library'); document.querySelector(`input[name="recipe"][value="${b.dataset.filter}"]`).checked = true; renderLibrary(); }));
+
+  /* ---------- Navigation / shell ---------- */
+  const shell = byId('shell');
+  const mobile = () => matchMedia('(max-width: 760px)').matches;
+  function navigate(view) {
+    byId('view-library').hidden = view !== 'library'; byId('view-session').hidden = view !== 'session';
+    document.querySelectorAll('.sidebar-item[data-nav]').forEach(b => { if (b.dataset.nav === view) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    byId('crumb-current').textContent = view === 'library' ? 'All recordings' : 'Baseline groundstrokes · 01';
+    shell.dataset.mobileOpen = 'false';
+    if (view === 'session') requestAnimationFrame(() => { drawStage(); drawChart(); });
+    if (view !== 'session') setPlaying(false);
+    scrollTo(0, 0);
+  }
+  document.querySelectorAll('[data-nav]').forEach(b => b.addEventListener('click', () => navigate(b.dataset.nav)));
+  byId('sidebar-trigger').addEventListener('click', () => {
+    if (mobile()) shell.dataset.mobileOpen = shell.dataset.mobileOpen === 'true' ? 'false' : 'true';
+    else shell.dataset.collapsed = shell.dataset.collapsed === 'true' ? 'false' : 'true';
+    byId('sidebar-trigger').setAttribute('aria-expanded', String(mobile() ? shell.dataset.mobileOpen === 'true' : shell.dataset.collapsed !== 'true'));
+    setTimeout(() => { drawStage(); drawChart(); }, 220);
+  });
+  document.addEventListener('click', e => { if (mobile() && shell.dataset.mobileOpen === 'true' && !e.target.closest('#sidebar') && !e.target.closest('#sidebar-trigger')) shell.dataset.mobileOpen = 'false'; });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') shell.dataset.mobileOpen = 'false'; });
+  document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => { shell.dataset.mobileOpen = 'false'; byId(b.dataset.open).showModal(); }));
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => { b.closest('dialog').close(); if (b.dataset.toast) toast(b.dataset.toast); }));
+  function setTheme(theme) { document.documentElement.dataset.theme = theme; byId('theme-button').firstElementChild.innerHTML = icon(theme === 'dark' ? 'sun' : 'moon'); byId('theme-button').setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'); drawStage(); drawChart(); }
+  byId('theme-button').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+
+  /* ---------- Session data ---------- */
+  const DURATION = 28.4, FPS = 60;
+  const events = [
+    { t: 2.4, type: 'Forehand', peak: 4.3, knee: 38, elbow: 119 },
+    { t: 6.65, type: 'Backhand', peak: 4.6, knee: 46, elbow: 113 },
+    { t: 10.8, type: 'Forehand', peak: 4.8, knee: 42, elbow: 126 },
+    { t: 14.95, type: 'Forehand', peak: 5.1, knee: 44, elbow: 131 },
+    { t: 19.2, type: 'Backhand', peak: null, knee: null, elbow: null, reason: 'Insufficient observation' },
+    { t: 23.75, type: 'Forehand', peak: 4.7, knee: 40, elbow: 124 }
+  ];
+  const lowObs = [[18.7, 19.75]];
+  const interp = [[9.95, 10.35], [18.7, 19.75]];
+  const state = { time: 10.8, selected: 2, playing: false, rate: .5, last: 0, signal: 'wrist' };
+  const fmt = s => { const ms = Math.round(Math.max(0, s) * 1000); return `${String(Math.floor(ms / 60000)).padStart(2, '0')}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}.${String(ms % 1000).padStart(3, '0')}`; };
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const inRanges = (t, ranges) => ranges.some(([a, b]) => t >= a && t <= b);
+  function signalAt(t) {
+    if (state.signal === 'wrist') return .2 + events.reduce((s, e) => s + ((e.peak || 4.2) - .2) * Math.exp(-(((t - e.t) / .3) ** 2)), 0);
+    const base = state.signal === 'elbow' ? 88 + Math.sin(t * 1.7) * 5 : 16 + Math.sin(t * 2.1) * 3;
+    return base + events.reduce((s, e) => s + (((state.signal === 'elbow' ? e.elbow : e.knee) ?? (state.signal === 'elbow' ? 118 : 40)) - base) * Math.exp(-(((t - e.t) / .6) ** 2)), 0);
+  }
+  const closest = t => events.reduce((best, e, i) => Math.abs(e.t - t) < Math.abs(events[best].t - t) ? i : best, 0);
+
+  function renderEvents() {
+    byId('events-body').innerHTML = events.map((e, i) => {
+      const st = e.peak === null ? badge('unavailable', e.reason) + `<div class="row-sub">${e.reason}</div>` : badge('valid');
+      return `<tr data-i="${i}" tabindex="0" aria-selected="${i === state.selected}"><td class="num">${String(i + 1).padStart(2, '0')}</td><td>${e.type}</td><td class="num hide-sm">${fmt(e.t)}</td><td class="num">${e.peak === null ? '—' : e.peak.toFixed(1) + ' <span class="muted tiny">torso/s</span>'}</td><td class="num hide-sm">${e.knee ?? '—'}${e.knee ? '°' : ''}</td><td class="num hide-sm">${e.elbow ?? '—'}${e.elbow ? '°' : ''}</td><td>${st}</td></tr>`;
+    }).join('');
+    byId('events-body').querySelectorAll('tr').forEach(tr => { const go = () => selectEvent(Number(tr.dataset.i)); tr.addEventListener('click', go); tr.addEventListener('keydown', ev => { if (ev.key === 'Enter') go(); }); });
+  }
+  function renderMetrics() {
+    const e = events[state.selected];
+    byId('current-title').textContent = `Swing ${String(state.selected + 1).padStart(2, '0')} · ${e.type}`;
+    byId('current-sub').textContent = `Speed peak · ${fmt(e.t)}`;
+    const rows = [
+      ['Wrist speed peak', e.peak === null ? null : e.peak.toFixed(1), 'torso/s', 'Relative to torso length · not racket speed', e.peak === null ? 'unavailable' : 'valid'],
+      ['Right knee flexion', e.knee, 'deg', 'At speed-peak frame · 2D projected', e.knee === null ? 'unavailable' : 'valid'],
+      ['Right elbow angle', e.elbow, 'deg', 'At speed-peak frame · 2D projected', e.elbow === null ? 'unavailable' : 'valid'],
+      ['Shoulder–hip separation', e.peak === null ? null : 15 + state.selected * 1.5, 'deg', 'Excluded from trends', e.peak === null ? 'unavailable' : 'experimental'],
+      ['Trunk lean', null, '', 'No vertical reference', 'unavailable']
+    ];
+    byId('metric-list').innerHTML = rows.map(([name, v, unit, note, st]) => `<div class="metric"><span class="name">${name}</span><span class="value">${v === null ? '—' : v + `<small>${unit}</small>`}</span><span class="note">${st === 'unavailable' && e.peak === null && name !== 'Trunk lean' ? e.reason : note}</span><span style="text-align:right">${badge(st)}</span></div>`).join('');
+    byId('event-tag').textContent = `SWING ${String(state.selected + 1).padStart(2, '0')} · SPEED PEAK`;
+    byId('events-body').querySelectorAll('tr').forEach(tr => tr.setAttribute('aria-selected', String(Number(tr.dataset.i) === state.selected)));
+  }
+  function selectEvent(i) { setPlaying(false); state.selected = i; setTime(events[i].t); renderMetrics(); }
+  function setTime(t) {
+    state.time = Math.max(0, Math.min(DURATION, t));
+    const frame = Math.round(state.time * FPS);
+    byId('scrub').value = frame; byId('scrub').setAttribute('aria-valuetext', `${state.time.toFixed(2)} s, frame ${frame}`);
+    byId('time-now').textContent = fmt(state.time); byId('frame-tag').textContent = `F ${String(frame).padStart(4, '0')} / 1704`;
+    const c = closest(state.time); if (c !== state.selected && Math.abs(events[c].t - state.time) < 1.2) { state.selected = c; renderMetrics(); }
+    drawStage(); drawChart();
+  }
+  function setPlaying(p) { state.playing = p; state.last = 0; byId('play').firstElementChild.innerHTML = icon(p ? 'pause' : 'play'); byId('play').setAttribute('aria-label', p ? 'Pause' : 'Play'); }
+  byId('play').addEventListener('click', () => { if (state.time >= DURATION - .02) setTime(0); setPlaying(!state.playing); });
+  byId('prev').addEventListener('click', () => { setPlaying(false); setTime(state.time - 1 / FPS); });
+  byId('next').addEventListener('click', () => { setPlaying(false); setTime(state.time + 1 / FPS); });
+  byId('scrub').addEventListener('input', e => { setPlaying(false); setTime(Number(e.target.value) / FPS); });
+  byId('rate').addEventListener('change', e => { state.rate = Number(e.target.value); });
+  document.querySelectorAll('input[name="signal"]').forEach(i => i.addEventListener('change', () => { state.signal = i.value; drawChart(); }));
+  byId('chart').addEventListener('keydown', e => { if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return; e.preventDefault(); setPlaying(false); setTime(state.time + (e.key === 'ArrowRight' ? 1 : -1) / FPS); });
+  byId('chart').addEventListener('click', e => { const r = e.currentTarget.getBoundingClientRect(); setPlaying(false); setTime((e.clientX - r.left - 36) / (r.width - 48) * DURATION); });
+  byId('export-button').addEventListener('click', () => {
+    const url = URL.createObjectURL(new Blob([JSON.stringify({ schema: 'action-tracker-ui-mock/1', demo: true, analysisPerformed: false, events: events.map((e, i) => ({ id: i + 1, type: e.type, keySeconds: e.t, wristSpeed: e.peak, unit: 'torso/s', status: e.peak === null ? 'unavailable' : 'valid', reasonCode: e.peak === null ? 'insufficient_observation' : null })) }, null, 2)], { type: 'application/json' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'action-tracker-demo.json'; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); toast('Exported demo measurement JSON');
+  });
+
+  /* ---------- Canvas drawing ---------- */
+  function fit(canvas) { const r = canvas.getBoundingClientRect(); const d = devicePixelRatio || 1; canvas.width = Math.max(1, r.width * d); canvas.height = Math.max(1, r.height * d); const c = canvas.getContext('2d'); c.setTransform(d, 0, 0, d, 0, 0); return [c, r.width, r.height]; }
+  function poseAt(t, w, h) {
+    const e = events[closest(t)], phase = Math.max(-1, Math.min(1, (t - e.t) / .6)), dir = e.type === 'Forehand' ? 1 : -1;
+    const cx = w * .5, base = h * .84, s = h / 520;
+    const P = (x, y) => [cx + x * s, base - y * s];
+    const swing = phase * 1.6 * dir;
+    const j = {
+      lAnkle: P(-38, 0), rAnkle: P(40, 0), lKnee: P(-34, 78), rKnee: P(36, 76), lHip: P(-24, 150), rHip: P(24, 150),
+      lShoulder: P(-44 + swing * 6, 262), rShoulder: P(44 + swing * 6, 262), nose: P(swing * 4, 300)
+    };
+    j.rElbow = [j.rShoulder[0] + Math.cos(-swing - .3) * 62 * s, j.rShoulder[1] + Math.sin(-swing - .3) * 40 * s + 20 * s];
+    j.rWrist = [j.rElbow[0] + Math.cos(-swing * 1.3 - .1) * 64 * s, j.rElbow[1] + Math.sin(-swing * 1.3 - .1) * 40 * s];
+    j.lElbow = P(-74 + swing * 10, 210); j.lWrist = P(-70 + swing * 18, 166);
+    j.neck = [(j.lShoulder[0] + j.rShoulder[0]) / 2, (j.lShoulder[1] + j.rShoulder[1]) / 2];
+    return j;
+  }
+  function drawSkeleton(c, j, t) {
+    const bones = [['neck', 'nose'], ['lShoulder', 'rShoulder'], ['lHip', 'rHip'], ['lShoulder', 'lHip'], ['rShoulder', 'rHip'], ['lShoulder', 'lElbow'], ['lElbow', 'lWrist'], ['rShoulder', 'rElbow'], ['rElbow', 'rWrist'], ['lHip', 'lKnee'], ['lKnee', 'lAnkle'], ['rHip', 'rKnee'], ['rKnee', 'rAnkle']];
+    const interpolated = inRanges(t, interp) ? new Set(['lWrist', 'lElbow']) : new Set();
+    const side = k => k[0] === 'l' ? css('--left') : css('--right');
+    c.lineCap = 'round';
+    bones.forEach(([a, b]) => { c.strokeStyle = '#000b'; c.lineWidth = 7; c.setLineDash([]); c.beginPath(); c.moveTo(...j[a]); c.lineTo(...j[b]); c.stroke(); });
+    bones.forEach(([a, b]) => { c.strokeStyle = a[0] === b[0] && a[0] !== 'n' ? side(a) : '#e4e4e7'; c.lineWidth = 3; c.setLineDash(interpolated.has(a) || interpolated.has(b) ? [5, 4] : []); c.beginPath(); c.moveTo(...j[a]); c.lineTo(...j[b]); c.stroke(); });
+    c.setLineDash([]);
+    Object.entries(j).filter(([k]) => k !== 'neck').forEach(([k, p]) => {
+      const sel = k === (state.signal === 'knee' ? 'rKnee' : state.signal === 'elbow' ? 'rElbow' : 'rWrist');
+      c.fillStyle = '#000b'; c.beginPath(); c.arc(p[0], p[1], sel ? 9 : 6.5, 0, 7); c.fill();
+      const col = sel ? css('--select') : k === 'nose' ? '#e4e4e7' : side(k);
+      if (interpolated.has(k)) { c.strokeStyle = col; c.lineWidth = 2; c.beginPath(); c.arc(p[0], p[1], 4.5, 0, 7); c.stroke(); }
+      else { c.fillStyle = col; c.beginPath(); c.arc(p[0], p[1], sel ? 6.5 : 4.5, 0, 7); c.fill(); }
+    });
+  }
+  function drawStage() {
+    const canvas = byId('stage'); if (byId('view-session').hidden) return;
+    const [c, w, h] = fit(canvas);
+    const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#16261f'); g.addColorStop(1, '#1d4a3a'); c.fillStyle = g; c.fillRect(0, 0, w, h);
+    c.strokeStyle = '#ffffffb0'; c.lineWidth = 1.5;
+    const hz = h * .32; c.beginPath(); c.moveTo(w * .22, hz); c.lineTo(w * .78, hz); c.moveTo(w * .02, h * .97); c.lineTo(w * .98, h * .97); c.moveTo(w * .22, hz); c.lineTo(w * .02, h * .97); c.moveTo(w * .78, hz); c.lineTo(w * .98, h * .97); c.moveTo(w * .5, hz); c.lineTo(w * .5, h * .62); c.moveTo(w * .14, h * .62); c.lineTo(w * .86, h * .62); c.stroke();
+    c.strokeStyle = '#e4e4e766'; c.lineWidth = 2; c.beginPath(); c.moveTo(w * .2, hz - h * .05); c.lineTo(w * .8, hz - h * .05); c.stroke();
+    drawSkeleton(c, poseAt(state.time, w, h), state.time);
+  }
+  function drawChart() {
+    const canvas = byId('chart'); if (byId('view-session').hidden) return;
+    const [c, w, h] = fit(canvas);
+    const L = 36, R = 12, T = 18, B = 44, pw = w - L - R, ph = h - T - B;
+    const lim = state.signal === 'wrist' ? 6 : state.signal === 'elbow' ? 180 : 90;
+    const X = t => L + t / DURATION * pw, Y = v => T + ph - v / lim * ph;
+    c.font = `11px ${css('--mono')}`; c.fillStyle = css('--muted-foreground'); c.strokeStyle = css('--border'); c.lineWidth = 1;
+    for (let k = 0; k <= 3; k++) { const v = lim * k / 3, y = Y(v); c.beginPath(); c.moveTo(L, y); c.lineTo(w - R, y); c.stroke(); c.textAlign = 'right'; c.fillText(Math.round(v * 10) / 10, L - 6, y + 4); }
+    c.textAlign = 'center'; [0, 7, 14, 21, 28].forEach(t => c.fillText(`${t}s`, X(t), h - 4));
+    lowObs.forEach(([a, b]) => { c.fillStyle = css('--muted-foreground') + '33'; c.fillRect(X(a), T, X(b) - X(a), ph); });
+    interp.forEach(([a, b]) => { c.fillStyle = css('--right') + '55'; c.fillRect(X(a), T + ph + 2, X(b) - X(a), 5); });
+    c.fillStyle = css('--muted-foreground'); c.textAlign = 'left'; c.fillText(state.signal === 'wrist' ? 'torso/s' : 'deg', L + 4, T + 10);
+    const draw = (alphaPred, alpha) => { c.strokeStyle = css('--right'); c.globalAlpha = alpha; c.lineWidth = 2; c.beginPath(); let pen = false; for (let i = 0; i <= 600; i++) { const t = DURATION * i / 600; if (alphaPred(t)) { const p = [X(t), Y(signalAt(t))]; pen ? c.lineTo(...p) : c.moveTo(...p); pen = true; } else pen = false; } c.stroke(); c.globalAlpha = 1; };
+    draw(t => !inRanges(t, interp), 1); draw(t => inRanges(t, interp), .4);
+    events.forEach((e, i) => { const x = X(e.t); c.fillStyle = e.peak === null ? css('--muted-foreground') : i === state.selected ? css('--primary-text') : css('--foreground'); c.beginPath(); c.moveTo(x, T + ph + 9); c.lineTo(x - 5, T + ph + 17); c.lineTo(x + 5, T + ph + 17); c.fill(); });
+    const x = X(state.time); c.strokeStyle = css('--select'); c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, T); c.lineTo(x, T + ph); c.stroke();
+    c.fillStyle = css('--select'); c.beginPath(); c.arc(x, Y(signalAt(state.time)), 4.5, 0, 7); c.fill();
+  }
+  function tick(ts) { if (state.playing) { if (state.last) setTime(state.time + Math.min((ts - state.last) / 1000, .1) * state.rate); state.last = ts; if (state.time >= DURATION) setPlaying(false); } requestAnimationFrame(tick); }
+  new ResizeObserver(() => { drawStage(); drawChart(); }).observe(document.body);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) setPlaying(false); });
+
+  renderLibrary(); renderEvents(); renderMetrics();
+  setTheme(matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  requestAnimationFrame(tick);
+</script>
+</body>
+</html>

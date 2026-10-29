@@ -1,0 +1,14 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "action-tracker",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-10-29",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "observability": {
+    "enabled": true
+  }
+  // D1 / R2 bindings are added in P3 (cloud sync). Do not create remote resources without explicit approval.
+}

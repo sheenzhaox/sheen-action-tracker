@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src 'self' file: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Action Tracker · Option C · Mobile focus</title>
+  <style>
+    /* shadcn "maia" feel: soft, rounded (12–20px), generous spacing, 44px+ controls */
+    :root {
+      color-scheme: dark;
+      --background: #0f0f11; --foreground: #fafafa; --card: #1b1b1f; --popover: #202024;
+      --muted: #26262b; --muted-foreground: #b4b4bd; --border: #34343b;
+      --input: #6f6f7a; --primary: #f97316; --primary-foreground: #18181b;
+      --accent: #2c2c32; --primary-text: #fdba74; --ring: #fdba74;
+      --valid: #86d9a8; --warning: #fcd177; --experimental: #d3b9f4;
+      --radius: 14px; --radius-lg: 20px; --left: #22d3ee; --right: #f97316; --select: #facc15;
+      --s1: #f97316; --s2: #fdba74; --s3: #a1a1aa;
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+      --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", sans-serif;
+      --peek: 196px;
+    }
+    [data-theme="light"] {
+      color-scheme: light;
+      --background: #f4f4f5; --foreground: #18181b; --card: #ffffff; --popover: #ffffff;
+      --muted: #ececef; --muted-foreground: #595963; --border: #dadade;
+      --input: #777782; --primary: #ea580c; --primary-foreground: #18181b;
+      --accent: #e6e6ea; --primary-text: #9a3412; --ring: #9a3412;
+      --valid: #166534; --warning: #854d0e; --experimental: #6b21a8;
+      --s1: #ea580c; --s2: #9a3412; --s3: #52525b;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body { background: var(--background); color: var(--foreground); font: 15px/1.5 var(--font); -webkit-text-size-adjust: 100%; overflow: hidden; }
+    button, input, select { font: inherit; color: inherit; }
+    button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+    :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+    h1, h2, h3, p { margin: 0; }
+    .num { font-variant-numeric: tabular-nums; }
+    .muted { color: var(--muted-foreground); }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .icon { display: inline-flex; flex: none; }
+    .icon svg { width: 20px; height: 20px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); font-weight: 600; white-space: nowrap; }
+    .button:hover { background: var(--accent); }
+    .button.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }
+    .button.ghost { background: transparent; border-color: transparent; }
+    .button.icon-only { width: 44px; padding: 0; }
+    .badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; background: var(--muted); font-size: 12px; font-weight: 600; white-space: nowrap; line-height: 1.6; }
+    .badge .icon svg { width: 14px; height: 14px; }
+    .valid { color: var(--valid); } .warning { color: var(--warning); } .experimental { color: var(--experimental); } .unavailable { color: var(--muted-foreground); }
+
+    .app { height: 100svh; display: grid; grid-template-rows: auto auto minmax(0, 1fr); }
+    .topbar { display: flex; align-items: center; gap: 6px; padding: max(8px, env(safe-area-inset-top)) 12px 4px; }
+    .title { flex: 1; min-width: 0; text-align: center; }
+    .title strong { display: block; font: 600 16px var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .title span { font-size: 12px; color: var(--muted-foreground); }
+    .option-badge { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translate(-50%, -140%); }
+    .segmented { margin: 4px 16px 10px; display: grid; grid-template-columns: 1fr 1fr; padding: 4px; gap: 4px; background: var(--muted); border-radius: 999px; }
+    .segmented button { min-height: 40px; border: 0; border-radius: 999px; background: transparent; color: var(--muted-foreground); font-weight: 600; font-size: 14px; }
+    .segmented button[aria-pressed="true"] { background: var(--card); color: var(--foreground); box-shadow: 0 1px 3px #0000002e; }
+
+    .stage-area { position: relative; min-height: 0; display: flex; flex-direction: column; padding: 0 12px calc(var(--peek) + 8px); gap: 10px; }
+    .stage { position: relative; flex: 1; min-height: 0; border-radius: var(--radius-lg); overflow: hidden; background: #0b0b0d; }
+    .stage canvas, .stage video { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .stage video { object-fit: contain; opacity: 0; pointer-events: none; }
+    .stage video[hidden] { display: none; }
+    .chip { position: absolute; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: #000000b3; color: #fafafa; font-size: 12px; font-weight: 600; backdrop-filter: blur(6px); }
+    .chip.tl { top: 12px; left: 12px; } .chip.tr { top: 12px; right: 12px; }
+    .chip .icon svg { width: 14px; height: 14px; }
+    .transport { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 999px; background: var(--card); border: 1px solid var(--border); }
+    .transport .play { width: 48px; height: 48px; border-radius: 999px; border: 0; background: var(--primary); color: var(--primary-foreground); display: grid; place-items: center; flex: none; }
+    .scrub-wrap { position: relative; flex: 1; min-width: 0; }
+    .scrub-wrap input { width: 100%; accent-color: var(--primary); min-height: 44px; margin: 0; display: block; }
+    .marks { position: absolute; left: 8px; right: 8px; top: 2px; height: 6px; pointer-events: none; }
+    .marks i { position: absolute; width: 6px; height: 6px; margin-left: -3px; border-radius: 99px; background: var(--foreground); }
+    .marks i.na { background: transparent; border: 1.5px solid var(--muted-foreground); }
+    .time { font-size: 13px; padding-right: 10px; white-space: nowrap; }
+
+    /* Drawer (vaul-style) */
+    .drawer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; height: calc(100svh - 72px); background: var(--popover); border-radius: var(--radius-lg) var(--radius-lg) 0 0; border-top: 1px solid var(--border); box-shadow: 0 -12px 40px #00000040; display: flex; flex-direction: column; transform: translateY(calc(100% - var(--peek))); transition: transform 260ms cubic-bezier(.32, .72, 0, 1); }
+    .drawer[data-snap="half"] { transform: translateY(45%); }
+    .drawer[data-snap="full"] { transform: translateY(0); }
+    .drawer.dragging { transition: none; }
+    .handle { border: 0; background: transparent; padding: 10px 0 4px; width: 100%; display: grid; place-items: center; min-height: 28px; touch-action: none; cursor: grab; }
+    .handle i { width: 44px; height: 5px; border-radius: 99px; background: var(--input); }
+    .drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 16px 10px; }
+    .drawer-head h2 { font: 600 17px var(--display); }
+    .drawer-head p { font-size: 12px; color: var(--muted-foreground); }
+    .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 0 12px; }
+    .tile { padding: 10px 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); min-width: 0; }
+    .tile .label { font-size: 12px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tile .value { font: 650 26px/1.15 var(--display); font-variant-numeric: tabular-nums; }
+    .tile .value small { font-size: 13px; font-weight: 500; color: var(--muted-foreground); margin-left: 2px; }
+    .tile .state { margin-top: 2px; font-size: 11px; display: flex; gap: 4px; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tile .state .icon svg { width: 13px; height: 13px; }
+    .tabs { display: flex; gap: 4px; margin: 14px 12px 0; padding: 4px; background: var(--muted); border-radius: 999px; }
+    .tabs button { flex: 1; min-height: 40px; border: 0; border-radius: 999px; background: transparent; color: var(--muted-foreground); font-weight: 600; font-size: 14px; }
+    .tabs button[aria-selected="true"] { background: var(--card); color: var(--foreground); box-shadow: 0 1px 3px #0000002e; }
+    .drawer-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 12px calc(20px + env(safe-area-inset-bottom)); overscroll-behavior: contain; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+    .card + .card { margin-top: 10px; }
+    .card h3 { font-size: 15px; font-weight: 600; }
+    .card .sub { font-size: 12px; color: var(--muted-foreground); }
+    .chart { height: 200px; position: relative; margin-top: 10px; }
+    .chart canvas { width: 100%; height: 100%; display: block; }
+    .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 12px; color: var(--muted-foreground); }
+    .legend svg { vertical-align: middle; margin-right: 5px; }
+    .list { display: flex; flex-direction: column; }
+    .row { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--border); min-height: 56px; background: transparent; border-left: 0; border-right: 0; border-top: 0; width: 100%; text-align: left; }
+    .row:last-child { border-bottom: 0; }
+    button.row:hover { background: var(--muted); border-radius: 10px; }
+    .row[aria-current="true"] { background: var(--accent); border-radius: 10px; }
+    .row .idx { width: 32px; height: 32px; border-radius: 99px; background: var(--muted); display: grid; place-items: center; font-size: 13px; font-weight: 700; flex: none; }
+    .row .main { flex: 1; min-width: 0; }
+    .row .main strong { display: block; font-size: 14px; }
+    .row .main span { font-size: 12px; color: var(--muted-foreground); }
+    .row .val { font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; }
+    .row .val small { display: block; font-weight: 500; font-size: 11px; color: var(--muted-foreground); }
+    .empty { text-align: center; padding: 28px 12px; }
+    .empty .icon { width: 48px; height: 48px; border-radius: 99px; background: var(--muted); display: inline-grid; place-items: center; margin-bottom: 10px; }
+    .empty h3 { font-size: 16px; }
+    .empty p { font-size: 13px; color: var(--muted-foreground); margin-top: 4px; }
+    .alert { display: flex; gap: 10px; padding: 12px 14px; border-radius: var(--radius); background: var(--muted); font-size: 13px; }
+    .alert .icon { color: var(--warning); }
+    .alert strong { display: block; }
+    .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .report-grid .card + .card { margin-top: 0; }
+    .big { font: 650 28px/1.2 var(--display); font-variant-numeric: tabular-nums; margin: 4px 0; }
+    .big small { font-size: 13px; color: var(--muted-foreground); font-weight: 500; margin-left: 3px; }
+    .footnote { margin-top: 12px; font-size: 12px; color: var(--muted-foreground); display: flex; gap: 6px; align-items: center; }
+    dialog { border: 0; border-radius: var(--radius-lg); background: var(--popover); color: var(--foreground); padding: 0; width: min(420px, calc(100vw - 24px)); }
+    dialog::backdrop { background: #0009; }
+    .dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 6px; }
+    .dialog-body { padding: 6px 16px 16px; display: flex; flex-direction: column; gap: 4px; }
+    .setting { display: flex; justify-content: space-between; align-items: center; min-height: 48px; border-bottom: 1px solid var(--border); font-size: 14px; }
+    .setting:last-child { border-bottom: 0; }
+    #toast { position: fixed; left: 50%; top: calc(16px + env(safe-area-inset-top)); transform: translateX(-50%); padding: 10px 16px; border-radius: 999px; background: var(--foreground); color: var(--background); font-size: 13px; z-index: 30; white-space: nowrap; }
+
+    /* Desktop: drawer becomes a right-hand Sheet panel */
+    @media (min-width: 960px) {
+      body { overflow: auto; }
+      .app { grid-template-columns: minmax(0, 1fr) 420px; grid-template-rows: auto auto minmax(0, 1fr); column-gap: 0; }
+      .topbar, .segmented { grid-column: 1; }
+      .segmented { max-width: 460px; justify-self: center; width: 100%; }
+      .option-badge { position: static; transform: none; }
+      .stage-area { grid-column: 1; padding: 0 24px 24px; }
+      .drawer { position: relative; grid-column: 2; grid-row: 1 / span 3; height: 100svh; transform: none !important; border-radius: 0; border-top: 0; border-left: 1px solid var(--border); box-shadow: none; transition: none; }
+      .handle { display: none; }
+      .drawer-head { padding-top: 18px; }
+    }
+    @media (max-width: 959px) { .option-badge { display: none; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <button class="button ghost icon-only" id="import-button" aria-label="Open local video"><span class="icon" data-icon="upload-simple"></span></button>
+    <div class="title"><strong id="clip-title">sample1.MOV</strong><span id="clip-meta" class="num">Front view · 7.7 s · Real video</span></div>
+    <span class="badge option-badge">Option C · Mobile focus</span>
+    <button class="button ghost icon-only" id="theme-button" aria-label="Switch theme"><span class="icon" data-icon="sun"></span></button>
+    <button class="button ghost icon-only" data-open="settings-dialog" aria-label="Settings"><span class="icon" data-icon="sliders-horizontal"></span></button>
+  </header>
+  <div class="segmented" role="group" aria-label="Analysis mode">
+    <button aria-pressed="true" data-mode="squat">Single-leg squat</button>
+    <button aria-pressed="false" data-mode="tennis">Tennis groundstrokes</button>
+  </div>
+  <div class="stage-area">
+    <div class="stage" id="stage-box">
+      <video id="clip" src="assets/sample1-360p.mp4" muted playsinline preload="auto" aria-hidden="true"></video>
+      <canvas id="stage" role="img" aria-label="Skeleton overlay"></canvas>
+      <span class="chip tl" id="chip-left"><span class="icon" data-icon="check-circle"></span>Skeleton only</span>
+      <span class="chip tr num" id="chip-right">F 0000</span>
+    </div>
+    <div class="transport">
+      <button class="play" id="play" aria-label="Play"><span class="icon" data-icon="play"></span></button>
+      <button class="button ghost icon-only" id="prev" aria-label="Previous frame"><span class="icon" data-icon="skip-back"></span></button>
+      <div class="scrub-wrap"><div class="marks" id="marks"></div><label class="sr-only" for="scrub">Playback position</label><input type="range" id="scrub" min="0" max="851" value="0"></div>
+      <button class="button ghost icon-only" id="next" aria-label="Next frame"><span class="icon" data-icon="skip-forward"></span></button>
+      <span class="time num" id="time">00:00.0</span>
+    </div>
+  </div>
+
+  <section class="drawer" id="drawer" data-snap="peek" aria-label="Measurements">
+    <button class="handle" id="handle" aria-label="Expand measurements" aria-expanded="false"><i></i></button>
+    <div class="drawer-head">
+      <div><h2 id="now-title">This frame</h2><p id="now-sub" class="num">Image plane · 2D projected angles</p></div>
+      <span class="badge" id="demo-badge">Demo data</span>
+    </div>
+    <div class="tiles" id="tiles"></div>
+    <div class="tabs" role="tablist" aria-label="Measurement views" id="tabs"></div>
+    <div class="drawer-body" id="drawer-body"></div>
+  </section>
+</div>
+
+<dialog id="settings-dialog" aria-labelledby="settings-title">
+  <div class="dialog-head"><h2 id="settings-title" style="font-size: 17px">Settings</h2><button class="button ghost icon-only" data-close aria-label="Close"><span class="icon" data-icon="x"></span></button></div>
+  <div class="dialog-body">
+    <div class="setting"><span>Racket hand</span><span class="muted">Right</span></div>
+    <div class="setting"><span>Pose model</span><span class="muted">Pose Landmarker heavy · precomputed</span></div>
+    <div class="setting"><span>Cloud sync</span><span class="muted">Not connected</span></div>
+    <div class="setting"><span>Language</span><span>English</span></div>
+    <button class="button primary" data-close style="margin-top: 10px">Done</button>
+  </div>
+</dialog>
+<input type="file" id="file" accept="video/*" hidden>
+<div id="toast" role="status" hidden></div>
+
+<script>
+  const phosphor = {
+    play: 'M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z',
+    pause: 'M200,32H160a16,16,0,0,0-16,16V208a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V48A16,16,0,0,0,200,32Zm0,176H160V48h40ZM96,32H56A16,16,0,0,0,40,48V208a16,16,0,0,0,16,16H96a16,16,0,0,0,16-16V48A16,16,0,0,0,96,32Zm0,176H56V48H96Z',
+    'skip-back': 'M199.81,34a16,16,0,0,0-16.24.43L64,109.23V40a8,8,0,0,0-16,0V216a8,8,0,0,0,16,0V146.77l119.57,74.78A15.95,15.95,0,0,0,208,208.12V47.88A15.86,15.86,0,0,0,199.81,34ZM192,208,64.16,128,192,48.07Z',
+    'skip-forward': 'M200,32a8,8,0,0,0-8,8v69.23L72.43,34.45A15.95,15.95,0,0,0,48,47.88V208.12a16,16,0,0,0,24.43,13.43L192,146.77V216a8,8,0,0,0,16,0V40A8,8,0,0,0,200,32ZM64,207.93V48.05l127.84,80Z',
+    'upload-simple': 'M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0ZM93.66,77.66,120,51.31V144a8,8,0,0,0,16,0V51.31l26.34,26.35a8,8,0,0,0,11.32-11.32l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,93.66,77.66Z',
+    sun: 'M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z',
+    moon: 'M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z',
+    'sliders-horizontal': 'M40,88H73a32,32,0,0,0,62,0h81a8,8,0,0,0,0-16H135a32,32,0,0,0-62,0H40a8,8,0,0,0,0,16Zm64-24A16,16,0,1,1,88,80,16,16,0,0,1,104,64ZM216,168H199a32,32,0,0,0-62,0H40a8,8,0,0,0,0,16h97a32,32,0,0,0,62,0h17a8,8,0,0,0,0-16Zm-48,24a16,16,0,1,1,16-16A16,16,0,0,1,168,192Z',
+    'check-circle': 'M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z',
+    'warning-circle': 'M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z',
+    'chart-line': 'M232,208a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V48a8,8,0,0,1,16,0v94.37L90.73,98a8,8,0,0,1,10.07-.38l58.81,44.11L218.73,90a8,8,0,1,1,10.54,12l-64,56a8,8,0,0,1-10.07.38L96.39,114.29,40,163.63V200H224A8,8,0,0,1,232,208Z',
+    x: 'M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z',
+    flask: 'M221.69,199.77,160,96.92V40h8a8,8,0,0,0,0-16H88a8,8,0,0,0,0,16h8V96.92L34.31,199.77A16,16,0,0,0,48,224H208a16,16,0,0,0,13.72-24.23ZM110.86,103.25A7.93,7.93,0,0,0,112,99.14V40h32V99.14a7.93,7.93,0,0,0,1.14,4.11L183.36,167c-12,2.37-29.07,1.37-51.75-10.11-15.91-8.05-31.05-12.32-45.22-12.81ZM48,208l28.54-47.58c14.25-1.74,30.31,1.85,47.82,10.72,19,9.61,35,12.88,48,12.88a69.89,69.89,0,0,0,19.55-2.7L208,208Z'
+  };
+  const strokes = { barbell: '<path d="M6 7v10M3.5 9.5v5M18 7v10M20.5 9.5v5M6 12h12"/>' };
+  const byId = id => document.getElementById(id);
+  const icon = name => strokes[name] ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">${strokes[name]}</svg>` : `<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="${phosphor[name] || phosphor['warning-circle']}"/></svg>`;
+  const paint = (root = document) => root.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = icon(el.dataset.icon); el.setAttribute('aria-hidden', 'true'); });
+  paint();
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const fmt = s => { const t = Math.max(0, s); return `${String(Math.floor(t / 60)).padStart(2, '0')}:${(t % 60).toFixed(1).padStart(4, '0')}`; };
+  const inR = (t, r) => r.some(([a, b]) => t >= a && t <= b);
+  const status = { valid: ['check-circle', 'Valid'], experimental: ['flask', 'Experimental'], unavailable: ['warning-circle', 'Unavailable'] };
+  const badge = (st, text) => `<span class="badge ${st}"><span class="icon">${icon(status[st][0])}</span>${text || status[st][1]}</span>`;
+  function toast(m) { const t = byId('toast'); t.textContent = m; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => { t.hidden = true; }, 2600); }
+
+  /* ---------------- Mode: Single-leg squat (sample1, real video + precomputed MediaPipe pose) ---------------- */
+  const POSE = {"fps":29.987,"w":360,"h":640,"k":[[516,163,100,608,217,100,412,210,100,662,314,97,373,289,95,585,262,99,364,332,99,526,382,100,413,368,100,523,508,82,288,467,93,523,606,86,170,542,88,515,618,54,162,545,45,529,646,86,134,602,86],[517,163,100,609,216,100,412,209,100,662,313,97,373,287,96,586,260,99,369,323,99,527,379,100,416,366,100,523,507,84,293,458,94,523,606,88,163,510,90,515,618,58,144,510,50,529,646,88,112,553,88],[518,162,100,610,215,100,413,208,100,663,311,97,373,286,96,587,258,99,382,316,99,530,376,100,422,362,100,523,504,86,296,444,95,523,606,90,164,463,91,514,618,64,145,456,56,530,646,90,100,497,89],[518,160,100,612,213,100,415,206,100,667,309,97,373,286,96,590,256,99,387,312,99,532,373,100,425,357,100,523,501,88,301,435,96,523,605,92,215,420,92,513,618,70,204,409,62,530,646,91,112,451,91],[519,159,100,614,212,100,416,205,100,671,308,97,373,287,96,594,254,99,390,304,99,535,372,100,429,356,100,523,500,90,297,432,95,522,605,93,261,391,89,511,618,73,263,379,62,530,645,93,210,402,89],[519,156,100,617,209,100,417,203,100,673,306,96,372,292,93,597,252,99,401,298,99,537,372,100,429,356,100,523,500,89,276,423,90,522,604,92,288,374,77,511,618,71,300,364,55,528,645,91,229,377,78],[520,155,100,619,207,100,418,201,100,675,304,95,371,293,90,602,251,98,413,292,99,538,371,100,428,353,100,523,500,87,256,417,83,521,603,91,333,373,64,509,617,68,359,365,46,528,645,89,311,374,66],[520,153,100,621,205,100,420,200,100,677,303,92,370,295,85,606,250,97,431,282,98,540,371,100,428,354,100,524,498,82,240,414,74,521,601,87,391,396,53,509,616,63,427,390,39,528,645,85,418,416,55],[521,152,100,623,204,100,423,200,100,678,302,90,370,296,80,610,250,96,451,276,97,542,370,100,428,353,100,524,496,74,237,413,65,521,600,82,399,404,43,509,615,57,435,399,32,528,645,79,423,426,46],[522,152,100,625,203,100,426,200,100,680,301,86,374,298,76,612,248,94,469,271,96,545,370,100,429,353,100,524,496,69,242,413,57,521,599,79,405,399,36,510,614,52,440,394,27,527,644,75,430,419,38],[524,152,100,628,203,100,429,200,100,682,301,81,386,301,71,612,248,90,486,266,95,548,368,100,436,352,100,524,495,64,246,415,53,522,598,78,419,394,30,512,612,50,449,388,24,526,643,74,414,423,33],[526,152,100,631,203,100,433,201,100,685,300,78,399,303,68,614,248,88,496,262,94,552,367,100,445,352,100,524,495,63,260,418,53,523,598,80,430,402,27,518,612,51,456,396,22,525,642,75,429,431,30],[527,154,100,633,203,100,436,204,100,686,301,77,408,305,66,615,248,87,501,263,94,554,368,100,448,353,100,524,495,65,287,428,56,525,598,82,436,411,27,521,612,55,458,406,22,525,642,78,436,460,31],[528,158,100,635,207,100,438,208,100,688,303,77,413,309,64,614,250,87,505,264,94,557,368,100,452,356,100,525,495,66,332,440,57,527,598,84,449,437,27,524,612,56,469,426,21,526,640,80,443,476,31],[529,169,100,635,214,100,440,214,100,688,308,79,417,314,65,614,256,88,504,267,94,562,369,100,460,358,100,526,496,70,362,450,62,528,597,86,448,458,31,527,609,60,471,453,24,525,639,83,434,495,35],[529,181,100,635,224,100,440,223,100,688,316,80,420,321,66,612,261,89,503,268,94,566,372,100,463,363,100,526,496,74,397,459,64,530,596,88,441,471,35,529,607,63,464,467,27,525,638,85,434,510,39],[529,191,100,635,234,100,440,234,100,688,325,82,420,330,67,611,270,90,500,275,95,569,378,100,466,372,100,526,497,77,431,472,65,532,596,89,444,483,37,530,606,64,460,482,28,524,638,86,434,523,41],[528,204,100,632,243,100,440,244,100,688,332,84,420,338,69,607,279,90,496,286,95,573,387,100,468,383,100,526,498,80,457,480,65,532,596,90,453,492,39,532,605,65,462,495,30,524,637,87,447,531,43],[527,218,100,628,254,100,438,256,100,688,342,85,418,348,71,604,288,90,494,296,95,575,392,100,470,391,100,527,499,82,468,488,63,533,596,90,466,501,40,535,605,67,478,503,31,523,636,88,457,536,45],[524,231,100,622,266,100,435,269,100,687,352,85,417,360,71,599,297,90,492,307,94,575,401,100,471,402,100,528,502,84,480,499,60,534,596,91,481,504,39,536,604,67,493,509,31,523,636,88,467,534,44],[520,244,100,617,278,100,435,280,100,685,361,86,416,368,71,594,307,91,490,316,94,575,408,100,472,409,100,528,503,85,485,504,57,536,595,90,497,504,39,538,604,67,509,506,31,523,636,88,480,531,43],[517,256,100,613,287,100,433,290,100,681,370,87,416,378,72,590,315,91,486,326,93,574,416,100,472,417,100,528,505,86,477,507,53,536,595,88,492,505,35,539,603,64,504,506,29,525,636,87,473,531,40],[515,266,100,611,297,100,432,300,100,677,378,87,416,387,70,588,324,91,484,335,91,574,425,100,473,426,100,528,506,87,467,519,48,537,594,84,482,505,32,540,602,59,494,504,26,525,636,83,469,529,36],[514,274,100,610,304,100,432,308,100,674,384,87,415,393,67,585,332,91,483,342,89,574,433,100,474,436,100,528,506,86,462,532,44,537,594,79,486,503,28,540,601,54,494,502,23,522,633,79,479,526,32],[512,283,100,610,311,100,432,314,100,672,392,88,415,399,69,584,339,93,483,349,89,575,438,100,476,441,100,529,508,88,456,534,49,538,594,79,499,506,28,541,600,54,506,500,24,522,631,79,493,530,32],[512,290,100,610,320,100,433,323,100,671,399,88,416,406,69,584,346,93,482,356,88,575,445,100,477,448,100,531,508,89,454,540,50,538,593,79,506,503,27,541,600,52,509,497,23,521,629,78,502,527,30],[511,297,100,610,326,100,434,330,100,670,405,88,417,412,68,584,352,93,483,362,87,575,449,100,478,453,100,534,508,89,452,546,49,538,592,76,500,501,24,541,599,50,506,494,21,521,629,76,501,521,28],[511,304,100,610,332,100,435,337,100,670,411,88,419,418,68,584,358,93,483,368,86,576,454,100,479,458,100,538,508,90,452,551,49,538,591,74,498,502,22,540,598,48,505,493,19,521,628,74,502,520,25],[511,309,100,610,337,100,435,343,100,670,417,88,421,424,70,584,363,94,484,373,86,576,456,100,480,460,100,542,509,90,451,556,49,539,590,72,497,503,21,540,597,46,505,495,18,521,628,73,502,522,23],[512,313,100,610,341,100,436,347,100,670,421,89,422,427,71,585,369,94,485,378,86,577,460,100,480,464,100,544,509,91,449,558,50,539,590,71,496,505,19,540,597,45,504,497,17,524,628,72,501,524,22],[512,316,100,611,345,100,437,351,100,669,425,88,424,430,72,585,373,94,486,381,86,577,464,100,481,466,100,546,509,91,448,561,49,540,590,70,496,508,18,540,597,44,503,500,16,527,628,70,498,526,20],[513,319,100,611,349,100,439,354,100,669,428,88,426,433,72,585,376,94,487,383,86,578,466,100,482,469,100,547,508,90,448,561,47,541,590,69,495,511,16,540,597,43,501,503,14,530,627,69,496,528,18],[514,321,100,612,350,100,439,355,100,668,430,89,427,434,74,585,378,94,488,385,86,578,468,100,482,472,100,548,508,91,448,562,47,542,590,69,494,512,14,540,598,43,500,504,13,532,627,70,496,531,17],[515,322,100,612,351,100,441,356,100,666,432,89,429,435,74,585,379,95,489,385,86,579,469,100,483,472,100,549,508,91,448,563,48,543,589,69,496,514,14,540,598,43,503,506,13,532,626,70,503,536,16],[516,323,100,613,351,100,442,356,100,664,433,89,430,435,74,585,381,95,491,385,86,579,469,100,483,472,100,550,508,91,448,563,48,543,589,69,496,514,13,540,598,43,503,506,12,532,625,70,502,536,15],[517,323,100,613,351,100,442,356,100,662,434,89,431,436,73,585,381,95,492,386,85,580,469,100,484,472,100,550,507,92,447,563,48,544,588,70,496,515,13,540,598,44,503,506,12,533,625,71,502,536,15],[518,324,100,613,351,100,442,357,100,661,435,89,432,436,73,585,381,94,492,387,83,580,470,100,484,473,100,550,506,92,447,563,50,545,587,71,495,515,13,541,597,44,503,506,12,534,625,72,501,536,15],[520,323,100,614,351,100,443,357,100,660,435,88,433,436,72,585,382,94,493,388,82,580,470,100,485,473,100,551,506,92,447,563,50,546,586,71,493,515,12,542,596,44,501,506,11,535,624,72,500,536,14],[520,323,100,614,351,100,444,357,100,660,436,88,433,436,72,585,382,94,493,388,81,581,470,100,485,473,100,551,506,92,447,563,50,546,586,72,494,515,12,543,596,44,502,506,11,535,624,72,501,536,14],[521,322,100,614,350,100,444,357,100,660,434,88,433,436,72,585,382,94,494,388,81,581,469,100,486,473,100,551,506,93,446,563,51,546,586,73,494,516,12,543,596,45,502,507,11,537,623,73,500,538,13],[522,321,100,615,350,100,444,356,100,661,434,88,434,435,73,585,381,94,494,387,80,582,469,100,487,472,100,552,505,93,448,563,51,546,585,74,496,515,11,543,595,46,504,506,11,537,623,74,502,537,13],[522,320,100,615,348,100,445,354,100,663,432,88,434,434,73,585,380,93,494,387,80,582,465,100,488,469,100,552,504,93,452,560,51,547,585,74,500,513,11,543,595,46,507,505,11,538,623,75,506,535,13],[523,317,100,616,344,100,445,347,100,665,427,89,433,430,74,585,376,94,493,384,81,583,460,100,489,464,100,551,502,94,455,556,52,547,585,75,502,509,11,543,594,47,509,501,11,539,623,75,507,531,13],[524,311,100,617,336,100,445,339,100,669,419,89,432,423,75,586,366,94,493,376,81,584,453,100,490,457,100,551,499,94,459,549,52,547,584,73,505,501,12,544,591,46,511,491,11,539,623,74,511,523,13],[524,302,100,618,326,100,445,331,100,672,411,89,431,415,76,586,358,94,493,366,82,587,444,100,492,448,100,551,497,94,462,540,53,548,582,73,508,496,13,547,590,47,516,487,13,538,623,74,512,519,15],[524,288,100,619,316,100,445,320,100,676,401,90,430,406,76,587,348,94,493,355,82,588,437,100,492,441,100,550,495,94,464,531,52,548,582,73,507,486,13,548,589,47,515,482,13,539,623,74,509,505,15],[526,276,100,620,305,100,445,308,100,679,390,88,430,393,75,588,338,93,496,343,82,589,428,100,492,431,100,550,494,92,470,527,47,548,582,70,505,483,12,548,590,44,507,481,12,539,623,71,505,505,14],[527,261,100,623,293,100,446,295,100,683,379,89,430,381,76,592,327,93,499,331,83,590,414,100,492,412,100,549,494,92,484,504,44,548,581,70,495,488,13,549,588,44,499,486,12,539,623,71,491,511,15],[530,245,100,629,279,100,447,279,100,689,366,89,430,369,77,596,312,93,507,317,85,591,397,100,493,394,100,550,493,93,489,487,46,549,580,74,493,487,19,550,588,48,500,487,16,540,623,75,483,513,21],[536,230,100,636,262,100,451,262,100,695,353,89,432,355,77,604,298,92,517,300,86,593,386,100,493,382,100,551,491,93,487,473,50,549,580,78,492,483,26,550,587,54,500,483,21,542,623,79,482,513,28],[543,211,100,644,247,100,456,245,100,702,339,89,440,339,77,612,284,92,525,284,87,594,378,100,493,376,100,551,488,93,483,484,53,550,580,81,486,482,28,550,588,56,499,479,22,542,623,81,481,509,30],[549,193,100,653,231,100,462,229,100,707,323,89,447,326,76,620,270,92,531,270,88,595,366,100,493,361,100,551,484,92,466,465,55,550,580,83,481,481,29,550,587,57,495,480,22,542,622,83,481,505,31],[553,178,100,661,216,100,468,214,100,716,312,89,450,311,76,629,260,92,533,258,89,596,357,100,493,348,100,551,482,92,426,452,60,551,579,85,483,460,32,551,587,60,496,454,24,542,622,85,483,496,35],[554,165,100,668,207,100,472,202,100,722,302,89,452,300,73,633,247,92,535,246,89,596,350,100,493,342,100,552,479,91,396,444,65,553,579,88,490,448,36,552,588,63,515,442,27,542,621,86,485,492,39],[556,155,100,673,197,100,473,191,100,726,292,88,452,291,70,634,236,91,532,239,89,596,347,100,491,337,100,554,476,90,369,433,67,554,578,89,490,420,37,552,588,65,515,412,28,542,620,88,486,461,41],[557,143,100,674,189,100,474,183,100,728,286,86,451,283,64,633,227,90,531,230,88,596,344,100,488,332,100,558,473,88,350,424,68,555,576,90,476,398,35,553,588,66,500,386,27,543,619,88,472,439,39],[558,138,100,677,181,100,476,176,100,731,279,84,450,276,62,634,221,89,530,224,88,597,341,100,488,326,100,560,470,85,320,413,67,555,575,90,469,376,31,553,587,65,493,367,25,542,619,88,456,413,36],[558,133,100,678,178,100,478,171,100,732,276,82,450,272,58,633,216,88,529,218,85,597,342,100,487,326,100,561,468,82,309,405,62,554,574,89,459,373,27,553,586,63,492,367,22,541,618,86,463,398,31],[560,128,100,679,174,100,479,168,100,732,274,80,449,269,53,633,211,86,529,213,83,597,341,100,487,322,100,562,467,78,304,393,57,554,572,87,464,371,23,551,585,60,501,368,19,541,618,84,486,402,27],[561,123,100,681,172,100,480,166,100,731,272,77,448,266,49,633,208,84,526,211,80,597,340,100,486,318,100,562,466,75,311,383,53,553,572,86,465,345,19,550,585,59,501,352,17,541,618,82,483,385,24],[564,122,100,681,170,100,480,163,100,731,270,74,446,265,45,632,205,81,525,207,77,597,338,100,486,314,100,562,465,72,318,374,49,552,572,85,452,352,17,545,585,57,487,350,16,542,617,81,459,379,21],[567,119,100,683,167,100,482,160,100,730,268,74,443,262,44,632,202,80,524,205,75,597,336,100,486,312,100,562,464,70,315,372,47,550,571,84,307,366,17,543,584,56,354,363,15,541,616,80,323,391,21],[571,116,100,684,166,100,482,158,100,730,266,74,441,261,46,632,200,81,522,203,77,597,335,100,485,311,100,562,465,71,316,370,52,548,570,85,267,376,25,540,583,57,265,372,19,542,615,81,191,404,28],[574,112,100,685,164,100,483,157,100,730,264,75,440,259,51,636,200,81,522,202,79,597,332,100,485,308,100,562,462,74,361,365,60,547,570,87,248,388,37,537,583,62,233,390,29,544,614,83,185,434,40],[578,111,100,686,163,100,483,157,100,730,264,76,440,257,54,641,199,82,522,200,81,598,332,100,485,309,100,562,462,75,361,374,66,546,570,88,237,427,47,536,583,65,217,430,36,545,613,85,188,482,50],[581,110,100,687,163,100,483,156,100,731,263,77,439,257,57,645,198,82,524,198,84,598,332,100,485,309,100,562,462,74,360,382,70,546,570,89,224,465,55,536,582,65,205,469,41,546,613,86,187,520,57],[583,110,100,689,162,100,483,156,100,731,263,78,439,256,60,649,197,83,528,196,86,599,331,100,485,310,100,562,463,72,364,402,74,546,568,88,230,494,62,536,581,65,213,496,44,546,612,86,207,558,63],[585,110,100,689,162,100,484,155,100,732,263,78,440,256,63,652,196,84,534,195,88,600,331,100,484,312,100,562,463,69,370,424,77,545,568,88,248,532,68,536,581,65,234,537,48,547,611,86,236,597,69],[588,109,100,689,162,100,484,155,100,732,264,79,439,256,67,656,198,85,540,194,90,600,331,100,481,312,100,562,464,67,383,441,80,545,568,88,270,553,74,534,581,65,260,562,52,549,611,87,250,619,74],[591,108,100,689,163,100,484,155,100,732,264,80,439,256,69,659,199,87,547,194,91,600,332,100,478,314,100,562,467,64,394,455,81,545,568,87,288,569,78,534,580,63,274,574,52,549,612,87,300,636,78],[592,109,100,687,164,100,483,156,100,730,265,81,439,257,71,663,200,88,546,196,92,599,333,100,477,320,100,562,472,64,409,467,83,545,568,86,324,587,81,534,579,61,309,595,54,550,612,86,337,651,81],[591,110,100,684,164,100,482,157,100,726,266,82,438,257,74,662,200,90,549,197,93,599,335,100,477,327,100,562,475,65,418,473,84,545,568,84,354,593,83,533,579,57,349,601,54,553,611,85,349,651,83],[592,111,100,676,168,100,480,158,100,722,270,83,437,258,75,662,201,90,548,198,93,599,338,100,476,333,100,563,478,65,427,480,85,544,568,81,365,595,85,532,579,54,364,606,53,553,611,83,352,649,83],[592,112,100,668,174,100,476,161,100,718,274,83,436,260,75,661,206,90,551,201,93,597,341,100,475,339,100,564,481,64,430,482,84,544,568,79,367,597,86,530,578,51,368,606,52,553,611,81,351,650,84],[593,116,100,664,178,100,474,163,100,716,278,83,433,263,77,660,211,90,553,204,93,595,345,100,474,344,100,564,484,65,424,488,85,542,568,78,360,594,87,529,578,50,359,601,53,555,611,81,347,650,85],[594,119,100,665,180,100,475,164,100,716,280,83,431,264,78,660,214,91,550,209,94,594,345,100,474,342,100,564,484,66,419,483,86,541,567,78,357,594,89,528,577,49,356,603,54,554,610,81,346,649,86],[596,122,100,675,180,100,480,164,100,716,281,84,431,264,79,660,214,92,546,211,95,594,345,100,473,341,100,564,483,67,417,477,88,541,567,79,355,589,90,527,577,49,351,596,55,553,610,82,347,648,88],[596,124,100,689,180,100,489,163,100,717,281,85,431,262,78,660,214,92,543,211,95,592,345,100,471,336,100,561,482,64,407,474,88,540,567,79,332,585,91,527,578,50,320,592,55,550,610,82,345,647,89],[597,125,100,696,179,100,494,160,100,722,281,85,431,259,77,660,214,93,538,211,95,590,344,100,468,329,100,558,481,63,386,458,89,540,567,81,293,578,92,525,578,52,274,586,58,547,609,84,321,642,90],[599,123,100,700,176,100,497,158,100,730,279,85,434,257,78,659,209,92,536,209,95,589,343,100,468,322,100,557,477,65,366,438,90,539,566,83,251,549,93,525,578,56,232,557,61,545,608,86,259,616,92],[599,121,100,702,172,100,500,155,100,733,275,86,438,253,78,659,203,92,533,206,95,590,339,100,471,316,100,556,470,66,346,420,91,539,565,84,215,506,93,525,577,58,197,512,62,541,607,87,190,572,92],[599,119,100,703,168,100,501,153,100,737,270,86,441,252,77,658,199,92,530,204,95,592,334,100,475,310,100,556,466,68,333,398,91,539,564,85,187,473,94,525,576,60,171,481,63,541,606,87,128,515,92],[599,117,100,703,165,100,501,152,100,740,266,85,443,250,75,658,198,90,530,201,94,594,330,100,479,304,100,555,462,70,332,380,91,537,564,86,180,432,93,524,576,61,162,432,64,540,606,87,118,465,92],[599,115,100,704,163,100,501,151,100,742,264,83,445,251,73,658,197,88,530,200,93,594,329,100,483,302,100,555,460,71,328,367,89,537,563,86,189,393,91,524,576,61,170,396,61,539,605,87,116,423,90],[599,114,100,704,162,100,501,150,100,744,262,80,446,251,72,659,196,85,532,199,92,594,328,100,484,302,100,556,460,73,311,360,88,537,562,87,192,359,89,524,575,63,177,353,60,538,604,87,135,374,88],[599,113,100,704,161,100,501,150,100,745,262,81,448,252,73,659,196,85,533,199,92,595,326,100,484,301,100,559,459,76,302,356,88,537,562,89,266,326,83,524,575,66,286,320,57,538,604,88,210,335,83],[601,112,100,706,160,100,502,149,100,746,262,80,449,252,71,661,195,85,536,199,92,595,325,100,485,300,100,562,460,77,288,351,84,538,562,89,410,321,71,526,574,66,444,314,50,537,604,87,418,337,72],[603,112,100,709,160,100,503,149,100,747,262,78,451,252,67,662,195,84,541,198,90,596,326,100,485,300,100,564,460,77,281,349,78,538,561,88,427,330,60,528,574,65,464,325,43,536,604,86,436,350,61],[606,112,100,713,160,100,507,148,100,749,262,78,453,252,64,663,194,83,546,198,88,596,326,100,485,300,100,565,460,77,274,350,75,540,561,88,427,331,51,531,573,64,463,326,38,536,604,86,437,353,53],[610,112,100,716,161,100,511,148,100,750,263,78,457,251,61,666,194,83,551,198,88,597,326,100,485,301,100,565,460,78,274,352,72,542,560,88,455,338,44,534,571,64,495,326,34,534,604,85,475,360,47],[613,112,100,720,161,100,515,148,100,751,263,78,460,251,58,668,194,83,558,197,87,597,327,100,486,301,100,565,460,77,277,355,69,543,560,88,465,337,38,536,571,62,496,335,30,532,604,84,469,364,41],[615,112,100,723,162,100,519,148,100,751,264,77,463,250,55,670,194,83,561,197,86,598,327,100,488,301,100,565,460,76,282,358,68,544,560,88,472,341,34,538,571,62,502,336,27,532,603,84,475,374,37],[616,114,100,724,163,100,521,148,100,751,266,77,464,250,52,672,195,83,562,198,85,599,327,100,490,303,100,566,460,76,288,366,69,545,560,89,481,350,32,539,571,62,508,346,26,532,603,85,499,395,36],[618,115,100,725,165,100,522,149,100,751,268,77,465,250,50,673,196,83,562,198,85,600,328,100,490,307,100,567,460,77,310,381,71,547,560,89,505,374,31,542,570,64,532,364,26,531,602,86,530,425,36],[618,120,100,725,168,100,522,151,100,751,270,79,464,252,47,673,198,84,562,201,83,601,329,100,491,311,100,568,460,79,353,396,72,548,559,91,516,389,32,543,569,66,542,378,27,531,602,87,526,435,37],[618,126,100,724,173,100,523,155,100,751,274,81,465,256,46,674,203,85,562,207,84,603,330,100,495,315,100,570,461,81,385,408,74,548,559,92,526,404,34,543,569,69,551,394,28,531,601,89,525,455,39],[618,134,100,724,178,100,523,163,100,750,278,82,465,264,45,674,209,87,562,214,84,604,330,100,497,318,100,573,461,82,413,416,74,549,559,92,533,422,35,544,569,70,554,418,29,532,601,90,541,461,41],[617,144,100,720,184,100,521,172,100,750,282,83,465,272,48,673,216,87,562,222,85,606,332,100,499,321,100,574,461,83,456,427,73,549,559,92,530,431,34,544,570,69,544,429,28,532,601,89,526,464,40],[614,154,100,712,194,100,519,182,100,748,288,84,464,278,49,670,224,88,560,230,85,607,339,100,500,331,100,574,462,83,486,437,69,551,559,92,533,435,32,547,569,67,548,431,26,533,600,89,531,465,37],[609,165,100,704,204,100,512,193,100,746,296,85,463,287,51,666,234,88,557,241,85,608,347,100,503,342,100,574,465,84,506,448,67,552,558,92,552,450,31,547,566,67,566,447,26,533,600,89,555,477,38],[604,178,100,695,215,100,505,207,100,742,305,86,462,298,54,661,246,90,553,252,86,610,357,100,506,354,100,575,466,85,518,459,65,552,558,92,566,470,32,548,566,68,580,470,26,534,599,89,554,504,38],[596,192,100,688,226,100,501,219,100,739,316,87,460,310,56,656,257,90,548,263,87,613,364,100,512,361,100,575,470,85,524,464,63,552,558,91,566,468,31,551,567,66,580,467,27,534,599,88,563,495,38],[589,206,100,682,236,100,498,231,100,734,325,88,458,320,59,652,269,91,542,274,87,615,372,100,515,368,100,573,470,83,527,470,58,552,559,89,561,488,29,551,567,63,574,488,25,536,599,87,559,514,36],[584,218,100,678,248,100,494,243,100,728,335,89,456,333,61,649,280,92,538,285,87,617,380,100,518,378,100,570,470,82,528,476,54,552,559,84,558,485,27,551,568,59,570,484,23,535,598,83,558,507,33],[579,227,100,674,257,100,492,254,100,723,346,89,456,342,62,644,289,92,534,294,87,618,390,100,519,387,100,564,472,82,527,483,51,551,559,80,555,478,24,550,568,55,565,475,22,533,598,80,554,501,31],[574,235,100,671,265,100,489,263,100,720,354,89,456,350,61,639,297,92,532,300,86,619,397,100,520,395,100,559,472,82,518,489,48,549,559,76,554,482,23,547,568,52,562,479,21,527,597,77,550,497,29],[571,244,100,668,272,100,488,271,100,718,358,88,456,358,59,636,305,91,529,308,83,619,405,100,519,406,100,556,472,82,511,498,44,548,558,70,545,477,20,546,566,48,552,474,19,526,596,72,539,491,26],[569,253,100,668,278,100,486,279,100,717,364,86,457,364,58,633,310,90,530,314,82,620,411,100,521,413,100,556,472,82,505,504,41,548,558,67,544,474,18,546,566,45,549,472,18,527,595,69,538,489,23],[567,261,100,666,284,100,486,285,100,718,368,84,458,371,57,632,316,89,530,320,80,621,416,100,522,419,100,556,473,82,493,509,39,548,558,65,544,472,16,545,566,43,548,470,16,528,595,67,536,496,21],[565,266,100,665,289,100,486,290,100,718,372,82,459,376,56,632,320,87,530,324,79,621,422,100,522,424,100,557,473,82,490,515,36,548,558,63,544,473,15,545,566,42,548,468,15,529,595,65,539,498,19],[564,272,100,665,293,100,486,296,100,719,376,81,460,380,57,631,325,86,530,328,79,621,426,100,522,427,100,559,473,83,488,518,36,548,558,61,545,474,14,544,567,41,549,470,14,530,595,64,541,503,17],[563,276,100,664,298,100,485,301,100,719,379,80,462,384,57,631,328,86,528,334,80,621,428,100,523,431,100,561,473,83,487,522,37,548,558,62,545,478,14,545,567,41,549,470,15,530,595,65,543,509,17],[562,280,100,664,302,100,485,305,100,719,382,79,462,388,56,630,331,85,528,338,78,622,432,100,524,435,100,564,473,83,487,526,36,548,558,60,546,482,13,545,568,40,550,473,14,530,595,63,545,508,16],[561,283,100,663,304,100,485,308,100,719,384,77,464,391,55,629,334,83,528,340,78,622,435,100,525,437,100,568,473,83,486,528,36,548,558,59,546,485,13,545,568,39,549,476,14,530,595,62,544,514,15],[559,283,100,662,307,100,485,312,100,719,387,77,465,395,56,629,336,84,528,344,78,623,436,100,525,438,100,571,474,84,486,530,36,548,558,60,543,487,13,546,569,39,546,477,14,530,596,63,541,515,15],[561,282,100,662,309,100,486,316,100,719,390,77,466,397,56,629,339,84,528,348,78,623,438,100,526,439,100,573,475,84,486,530,36,549,559,59,541,487,12,546,570,38,544,478,13,532,596,62,541,512,15],[567,280,100,663,311,100,486,318,100,718,392,77,469,399,56,629,341,84,529,348,77,624,440,100,527,440,100,574,476,84,486,531,35,550,559,59,540,487,12,547,570,38,542,478,12,532,596,62,539,515,14],[573,278,100,663,313,100,486,320,100,718,394,77,472,401,55,629,343,85,532,348,76,624,441,100,527,441,100,575,476,84,485,532,34,550,559,58,536,489,11,549,570,37,541,480,12,532,597,61,534,519,13],[579,276,100,663,315,100,487,322,100,717,397,77,474,402,53,630,345,85,535,350,74,624,442,100,527,442,100,575,477,84,485,533,32,551,559,57,535,490,10,550,571,35,540,480,11,532,597,60,534,519,12],[584,275,100,663,317,100,489,323,100,716,399,76,475,402,53,630,345,85,538,351,74,624,444,100,527,443,100,574,478,84,485,534,31,551,560,56,534,491,10,550,571,34,540,482,11,532,597,59,534,521,12],[588,275,100,664,318,100,491,324,100,714,401,76,476,403,53,629,346,86,540,353,74,624,446,100,527,446,100,573,479,84,484,536,30,552,560,55,534,492,9,550,571,34,540,482,10,531,597,58,534,520,11],[590,274,100,664,319,100,492,325,100,713,402,76,477,404,53,629,348,85,541,354,74,624,448,100,527,448,100,572,479,84,484,536,30,552,561,55,535,494,9,551,572,33,542,484,10,530,598,58,534,519,11],[592,274,100,664,320,100,492,325,100,710,404,76,476,405,53,628,350,85,541,356,73,624,449,100,527,449,100,570,479,85,484,536,30,552,562,55,536,495,9,551,572,33,544,485,10,530,598,58,535,518,11],[593,274,100,664,321,100,493,325,100,708,405,76,476,405,54,627,350,86,540,359,72,624,448,100,527,449,100,570,479,86,485,536,31,552,562,55,537,495,9,551,572,33,546,486,10,529,598,58,539,521,11],[594,274,100,664,321,100,493,325,100,707,404,77,476,404,53,627,350,86,538,360,72,624,448,100,527,449,100,570,479,86,487,536,30,552,562,54,539,496,9,551,572,32,547,486,10,529,598,58,540,522,11],[594,274,100,664,320,100,493,324,100,707,403,77,476,404,51,626,349,87,536,359,70,624,447,100,527,448,100,570,480,85,492,536,30,552,562,53,542,495,9,551,572,32,550,486,10,529,599,57,544,523,11],[596,272,100,664,319,100,492,322,100,706,402,78,475,403,50,626,349,87,534,358,69,625,445,100,528,447,100,572,480,85,498,534,28,552,562,52,543,498,9,551,573,31,551,493,10,530,600,56,543,527,11],[596,268,100,664,314,100,492,316,100,706,397,79,474,398,49,626,344,88,532,355,68,626,439,100,529,441,100,572,480,84,503,530,27,552,562,51,548,497,9,551,573,30,553,499,10,532,600,55,545,527,10],[596,260,100,665,305,100,492,309,100,706,389,80,473,392,48,626,337,88,532,348,67,627,430,100,529,433,100,573,480,82,518,524,25,552,563,49,550,500,8,550,573,29,554,500,9,534,600,53,547,524,10],[596,252,100,665,296,100,492,299,100,708,382,81,472,383,48,626,329,89,532,337,67,629,423,100,530,425,100,573,480,80,531,521,22,552,564,45,549,505,8,550,574,28,554,505,9,533,600,51,547,515,9],[596,241,100,667,286,100,492,289,100,711,373,82,472,374,48,627,320,89,534,325,67,630,413,100,531,413,100,572,479,80,540,514,20,552,565,44,551,512,7,551,574,27,555,513,9,531,601,50,546,522,9],[598,229,100,670,275,100,492,276,100,716,363,84,472,363,49,630,308,90,537,315,67,630,401,100,531,399,100,572,480,78,543,493,20,552,565,44,550,512,8,551,574,27,556,511,9,532,602,50,546,526,10],[600,216,100,675,264,100,493,263,100,720,353,85,472,352,51,635,294,90,543,301,69,630,390,100,531,388,100,572,481,77,547,486,19,552,566,46,556,510,8,550,575,28,563,509,9,532,603,51,555,526,10],[603,202,100,681,250,100,497,247,100,724,342,85,472,338,54,643,281,90,554,284,72,630,380,100,530,377,100,572,480,75,543,478,19,552,566,50,561,510,8,551,576,29,572,512,9,533,604,54,558,535,11],[606,187,100,689,235,100,503,231,100,728,328,85,473,322,56,652,267,90,561,270,76,630,372,100,529,367,100,572,477,73,535,469,20,553,567,55,564,481,8,552,576,32,576,478,9,535,604,58,566,506,12],[610,174,100,697,222,100,509,217,100,733,317,85,476,308,58,659,254,90,569,255,79,630,364,100,529,357,100,571,472,71,509,465,20,553,567,59,562,481,8,552,577,34,573,480,9,539,604,61,563,508,11],[612,161,100,704,210,100,515,204,100,736,306,85,480,297,60,663,243,91,574,242,82,630,355,100,528,344,100,565,468,73,470,448,26,553,566,64,548,447,11,552,577,38,569,443,11,538,604,65,545,475,14],[612,150,100,712,199,100,520,191,100,741,297,86,483,288,58,667,233,91,576,232,83,629,351,100,527,338,100,559,467,74,431,438,31,553,566,69,543,443,12,553,576,43,565,442,12,537,604,70,538,480,17],[614,138,100,717,190,100,522,182,100,747,289,85,485,280,56,668,224,91,576,222,84,629,343,100,525,332,100,560,467,76,395,426,40,553,566,74,538,442,19,552,577,50,565,437,17,540,604,74,531,490,23],[614,129,100,720,183,100,524,173,100,750,283,85,485,272,52,669,214,90,576,214,84,628,341,100,523,325,100,562,466,77,368,413,46,553,565,78,523,420,22,551,577,55,555,412,20,540,605,78,511,476,26],[613,122,100,721,177,100,524,168,100,753,278,82,485,267,50,669,211,88,574,210,84,628,338,100,521,321,100,566,464,77,342,399,49,553,565,81,499,395,22,550,578,58,530,389,20,540,605,80,490,441,27],[613,118,100,721,173,100,525,164,100,754,272,81,485,262,47,668,208,86,573,205,83,628,335,100,521,316,100,569,462,76,330,388,52,553,565,84,480,371,22,548,578,61,511,364,20,540,605,82,458,412,27],[612,118,100,721,170,100,524,162,100,755,269,78,485,259,44,667,204,84,572,202,80,628,335,100,520,313,100,570,462,73,324,376,49,552,565,84,473,365,19,546,578,60,508,358,18,540,606,81,466,395,24],[611,116,100,720,169,100,524,160,100,754,269,75,484,261,42,666,202,81,567,200,79,627,336,100,517,311,100,570,461,71,325,366,46,551,565,83,483,340,16,544,578,58,516,348,16,540,606,80,481,375,21],[609,116,100,720,168,100,524,159,100,754,268,74,482,259,40,665,201,80,560,201,77,626,334,100,516,308,100,570,461,69,328,357,43,550,565,82,489,339,14,543,578,57,518,336,15,540,606,79,492,382,19],[607,115,100,720,167,100,523,159,100,754,267,73,479,260,38,665,200,80,555,200,76,626,335,100,514,308,100,570,461,67,311,358,41,549,565,81,473,354,13,541,578,55,510,351,13,542,607,77,482,379,17],[605,113,100,720,165,100,523,159,100,754,266,75,477,259,37,665,200,81,553,199,75,625,336,100,512,307,100,570,461,66,308,360,40,548,566,80,406,367,12,541,578,53,433,364,12,542,608,75,396,389,16],[603,112,100,720,165,100,523,158,100,754,265,77,476,259,41,665,199,83,551,199,77,625,334,100,512,305,100,570,461,71,328,349,48,548,566,82,261,370,25,540,578,57,245,375,22,542,608,78,188,400,28],[605,112,100,721,164,100,523,158,100,754,264,79,476,260,44,665,198,84,550,199,80,625,333,100,512,305,100,570,461,74,363,354,55,548,566,84,244,389,37,541,578,59,228,400,29,541,608,80,182,426,39],[609,110,100,721,164,100,523,157,100,756,263,80,476,259,48,667,198,85,550,198,82,626,332,100,513,306,100,572,461,75,369,362,62,548,566,86,231,426,47,540,578,62,212,431,35,542,608,82,194,480,49],[612,110,100,722,164,100,523,156,100,758,263,81,476,258,53,669,197,86,552,197,84,627,333,100,514,307,100,573,462,76,373,372,68,548,566,87,224,458,56,540,578,65,202,462,41,543,608,84,192,512,57],[615,109,100,723,164,100,524,157,100,759,263,82,476,256,57,673,196,86,556,196,86,628,332,100,514,308,100,575,462,75,378,398,72,548,566,88,232,488,63,540,578,65,210,497,45,544,608,85,211,545,64],[619,110,100,725,164,100,524,156,100,761,264,83,476,256,62,677,197,87,562,196,89,628,332,100,513,309,100,576,463,73,388,418,76,549,566,88,250,517,69,540,579,65,230,522,48,544,608,86,241,577,70],[622,111,100,725,164,100,524,156,100,762,264,83,475,256,66,681,198,88,571,196,90,628,332,100,512,309,100,577,463,69,408,430,79,549,566,88,276,538,74,540,579,66,258,544,53,546,609,87,259,604,75],[626,111,100,726,165,100,524,156,100,762,265,82,475,256,69,685,198,89,576,196,92,628,332,100,509,313,100,577,466,65,421,443,81,549,566,87,304,559,78,539,579,65,287,570,55,547,609,87,320,621,79],[628,112,100,726,166,100,524,157,100,762,266,82,474,256,70,687,199,89,580,196,93,628,334,100,507,320,100,577,470,61,438,456,82,549,567,85,354,575,81,539,579,62,339,585,56,549,609,86,371,640,81],[629,114,100,725,170,100,522,157,100,759,270,84,474,256,71,688,202,91,580,198,93,627,336,100,506,325,100,577,473,61,450,469,83,549,567,83,387,587,84,538,579,60,378,597,56,550,609,86,395,650,83],[628,121,100,722,175,100,521,159,100,755,274,85,472,259,71,689,206,92,580,204,93,626,342,100,506,332,100,577,478,63,463,478,84,549,568,82,411,595,86,538,578,57,410,605,56,550,610,84,400,654,85],[628,128,100,716,182,100,518,165,100,753,280,86,470,264,72,689,210,92,580,210,93,626,349,100,506,340,100,577,484,64,473,485,85,549,568,81,417,601,87,537,578,55,422,614,58,550,610,83,394,654,86],[627,133,100,712,188,100,516,170,100,751,284,86,468,268,73,689,215,92,579,218,93,626,354,100,506,346,100,577,486,66,472,487,86,549,569,80,412,601,89,537,579,53,414,612,59,551,611,82,393,656,87],[627,136,100,712,188,100,516,172,100,750,288,86,466,271,74,689,220,92,579,222,93,625,356,100,505,346,100,577,487,69,465,484,88,549,569,80,407,597,90,537,579,54,408,607,62,551,611,83,395,656,89],[627,138,100,714,188,100,517,172,100,749,290,87,465,271,76,689,222,93,578,222,93,624,356,100,503,344,100,577,488,71,460,480,89,548,569,80,400,595,91,535,578,54,398,602,63,551,611,83,393,655,90],[627,138,100,720,188,100,522,171,100,750,289,87,465,270,76,689,221,93,578,220,93,621,355,100,500,342,100,577,487,69,448,477,90,547,570,80,381,588,92,534,579,54,372,596,63,551,611,83,389,649,91],[627,137,100,725,187,100,527,170,100,753,288,87,467,268,76,688,220,93,578,220,94,617,352,100,499,333,100,573,486,67,424,452,90,545,571,82,338,581,93,533,583,56,320,589,65,551,612,85,370,642,92],[627,136,100,730,186,100,531,167,100,757,288,87,469,264,75,688,220,92,578,219,94,614,348,100,499,324,100,569,482,65,403,433,91,544,571,83,289,551,94,532,583,59,270,559,67,549,612,86,299,616,93],[628,136,100,732,182,100,533,163,100,760,285,86,470,260,76,688,218,91,577,219,94,614,344,100,499,317,100,569,476,65,391,414,92,544,571,84,255,511,94,532,583,60,234,518,67,548,611,87,230,568,93],[629,135,100,733,181,100,534,161,100,762,282,86,471,259,76,688,214,90,576,217,93,614,342,100,499,315,100,569,473,66,376,395,93,544,571,86,230,471,94,532,583,62,211,477,69,545,611,88,177,512,94],[632,135,100,734,180,100,534,160,100,763,280,86,471,257,77,688,212,89,576,215,93,614,340,100,500,313,100,570,470,70,368,379,93,544,571,88,230,426,95,532,583,66,209,426,70,545,611,89,158,464,94],[633,134,100,734,179,100,534,160,100,764,278,84,471,257,76,688,211,87,576,214,93,613,339,100,501,312,100,570,469,72,368,368,93,544,570,88,237,390,93,531,583,68,212,388,69,543,610,89,159,419,93],[633,134,100,733,179,100,534,160,100,764,278,84,471,257,78,688,210,86,576,213,93,611,339,100,501,312,100,570,469,76,360,368,93,543,570,90,255,360,93,531,583,72,229,347,71,541,610,91,183,385,93],[633,134,100,733,179,100,534,160,100,764,277,84,471,257,78,688,210,87,576,213,93,610,338,100,501,312,100,570,468,79,337,369,93,543,570,92,317,333,90,530,583,75,331,319,70,538,610,92,247,335,90],[633,134,100,733,178,100,533,160,100,765,277,82,470,258,75,688,210,86,576,213,91,610,338,100,501,312,100,570,469,80,312,367,90,542,570,92,375,319,78,530,583,75,400,312,62,537,611,92,355,325,80],[633,134,100,733,178,100,532,160,100,764,278,81,470,260,72,688,212,86,576,214,90,608,339,100,500,313,100,570,469,82,298,368,87,542,570,93,431,337,68,530,583,75,464,330,55,535,612,92,441,353,71],[633,134,100,733,179,100,531,161,100,764,279,81,470,262,72,689,214,86,577,215,90,606,340,100,497,314,100,571,470,84,292,370,87,543,570,93,452,340,60,531,583,76,488,334,50,535,612,92,477,356,64],[633,135,100,733,180,100,530,162,100,764,281,81,470,264,71,690,217,86,577,216,90,605,342,100,495,315,100,571,472,85,289,373,85,544,571,93,451,347,53,532,582,75,481,341,45,533,612,92,463,368,58],[633,138,100,733,182,100,530,164,100,764,283,81,471,265,70,690,219,86,578,218,90,604,342,100,495,315,100,571,472,85,293,375,84,544,572,93,463,356,48,533,584,74,493,352,41,531,613,91,470,381,53],[632,142,100,733,184,100,530,166,100,764,285,80,471,268,69,690,221,86,578,221,90,604,342,100,494,318,100,571,473,84,295,384,83,544,572,93,467,364,44,534,584,72,492,360,38,528,613,91,472,396,49],[631,147,100,732,188,100,527,170,100,763,288,79,470,271,66,689,224,85,578,224,90,602,345,100,492,322,100,571,475,84,300,394,84,544,573,93,467,375,43,535,584,72,492,361,36,528,614,91,471,425,48],[630,152,100,731,192,100,526,174,100,762,292,79,469,275,62,689,227,85,577,228,89,598,348,100,489,327,100,571,477,85,317,404,84,544,573,94,472,398,44,536,585,73,496,386,37,527,614,91,479,442,49],[627,157,100,728,197,100,523,179,100,760,296,80,468,280,60,688,231,85,575,233,89,595,350,100,486,331,100,570,480,85,344,416,85,544,574,94,478,418,45,536,585,74,504,408,38,526,614,92,486,453,50],[621,164,100,720,202,100,518,184,100,757,299,81,465,286,60,682,237,86,570,241,89,595,352,100,487,335,100,570,482,86,371,425,85,543,574,95,485,432,46,536,584,75,509,425,38,526,614,92,484,472,51],[612,172,100,713,207,100,512,191,100,753,304,82,461,292,61,678,245,86,566,247,89,594,354,100,486,340,100,568,482,87,394,435,85,542,574,95,478,439,47,535,584,75,503,433,38,524,614,93,475,472,51],[603,183,100,704,214,100,506,199,100,747,309,84,458,299,64,673,253,87,559,255,90,593,357,100,486,344,100,567,482,87,427,439,84,541,574,95,473,450,46,535,584,75,495,446,36,523,615,92,471,487,51],[595,193,100,695,223,100,499,209,100,739,316,85,454,307,68,665,260,89,552,264,92,591,361,100,485,349,100,564,482,87,452,437,82,539,574,94,471,462,45,534,584,73,493,462,35,522,615,92,471,502,50],[588,204,100,686,235,100,488,220,100,732,324,86,450,316,72,655,267,90,546,272,93,589,366,100,484,356,100,562,482,88,464,441,82,537,576,95,475,470,49,531,586,75,489,472,36,521,615,93,475,511,53],[582,216,100,676,244,100,480,232,100,725,332,87,443,326,74,646,276,90,538,283,94,588,377,100,484,370,100,560,484,89,472,458,80,536,576,95,484,478,50,530,586,76,494,479,36,520,616,93,478,514,54],[574,229,100,667,255,100,474,244,100,719,341,87,436,336,75,638,287,90,531,293,94,588,386,100,484,381,100,557,486,90,483,477,76,536,576,95,494,482,48,530,585,76,504,481,34,520,616,93,482,512,51],[568,241,100,660,267,100,469,258,100,712,353,88,430,349,76,630,297,90,526,303,94,588,394,100,484,390,100,553,491,92,481,493,72,535,577,94,503,485,45,530,586,75,511,482,33,520,617,93,489,510,49],[560,255,100,652,276,100,465,270,100,705,362,89,428,359,77,623,308,91,518,314,93,587,403,100,484,400,100,548,494,92,482,500,70,535,577,93,503,487,42,530,586,74,511,483,31,520,617,92,489,511,46],[553,266,100,646,288,100,462,281,100,699,371,89,426,368,78,616,318,91,511,325,93,585,411,100,483,409,100,546,496,93,478,509,67,534,578,91,500,488,38,530,586,70,508,484,29,519,617,90,491,507,42],[548,276,100,642,297,100,460,292,100,693,379,90,424,377,79,612,327,92,506,334,93,582,418,100,482,418,100,545,497,93,473,514,65,533,578,89,499,491,35,529,587,69,507,487,27,519,617,89,494,507,39],[545,285,100,638,306,100,458,303,100,688,386,91,425,386,80,607,335,93,505,342,93,580,426,100,482,426,100,545,498,94,470,516,66,532,579,89,505,490,34,528,587,69,509,489,26,518,617,88,505,512,37],[541,294,100,635,314,100,457,310,100,683,393,92,425,393,81,604,342,94,504,349,92,579,430,100,482,431,100,546,499,95,468,520,65,530,579,89,507,491,31,525,587,68,509,493,24,517,616,88,506,517,35],[538,301,100,632,320,100,455,317,100,680,399,93,426,399,81,602,348,94,503,355,90,578,436,100,482,436,100,546,500,95,460,527,63,528,580,88,506,491,28,523,587,67,509,488,22,517,616,87,504,514,31],[537,306,100,632,325,100,454,324,100,679,405,93,426,404,81,601,353,94,503,361,89,577,442,100,481,444,100,546,500,95,454,534,60,527,581,86,505,493,24,521,588,65,509,486,19,517,616,87,502,514,27],[533,312,100,631,330,100,454,328,100,678,409,93,426,408,81,600,358,94,503,365,87,576,447,100,480,447,100,547,500,95,448,538,56,526,582,85,501,495,21,519,589,63,507,488,17,517,616,85,500,516,24],[533,316,100,630,333,100,455,331,100,677,413,93,425,412,80,600,362,93,502,369,85,575,450,100,479,450,100,547,500,95,444,545,52,526,582,82,496,497,18,519,589,60,500,490,15,517,616,82,493,518,20],[532,319,100,629,337,100,455,335,100,676,416,93,425,416,80,600,365,93,503,371,84,574,452,100,478,452,100,547,500,94,442,548,49,525,582,79,493,500,15,519,589,57,495,493,13,516,616,80,490,520,18],[533,321,100,628,341,100,455,339,100,676,418,92,425,419,79,599,368,93,503,374,83,573,457,100,476,456,100,548,500,94,440,551,46,525,582,76,484,504,13,519,589,54,487,496,12,516,616,77,482,520,16],[534,323,100,626,343,100,454,342,100,676,421,92,425,420,78,598,371,93,503,377,83,572,458,100,476,458,100,548,500,94,439,552,45,525,582,74,485,502,12,519,590,52,488,495,11,515,616,75,483,521,14],[534,324,100,626,345,100,453,344,100,675,423,92,425,422,78,598,372,92,503,379,82,571,461,100,474,461,100,548,500,93,438,554,43,525,582,72,485,504,11,518,591,50,489,499,10,515,616,73,483,525,13],[533,326,100,626,346,100,452,345,100,674,423,92,425,422,78,597,373,92,503,380,81,571,461,100,474,461,100,548,500,93,438,553,43,525,582,72,486,505,10,518,591,49,489,498,9,514,616,74,484,527,12],[532,326,100,625,346,100,452,344,100,674,423,92,424,422,77,597,373,92,502,380,80,570,460,100,473,461,100,548,501,93,438,553,43,525,582,72,488,506,9,518,592,49,490,500,9,515,617,74,487,528,11],[532,325,100,625,344,100,452,342,100,673,422,92,424,421,77,596,372,92,502,379,80,570,458,100,473,458,100,548,501,93,438,550,42,525,583,72,490,505,8,518,592,48,491,499,9,515,617,74,492,527,10],[533,323,100,625,342,100,452,340,100,672,420,92,424,419,77,596,371,92,502,377,80,570,457,100,473,457,100,549,502,93,438,549,43,525,583,72,492,502,8,518,592,49,496,494,9,515,617,73,498,521,10],[533,322,100,625,340,100,451,338,100,672,419,93,423,418,78,596,370,92,501,376,79,570,452,100,473,452,100,550,503,93,441,547,42,525,583,72,499,501,8,518,592,49,504,492,8,514,617,74,505,521,9],[533,315,100,626,334,100,450,330,100,671,415,93,423,412,78,596,366,93,500,372,80,569,445,100,473,445,100,551,504,94,446,538,44,525,583,73,502,495,8,518,591,50,508,484,8,515,618,75,512,518,10],[533,305,100,626,324,100,450,320,100,672,406,94,422,402,79,596,357,93,500,362,80,569,436,100,472,436,100,551,504,95,455,528,48,525,584,76,504,490,10,518,591,53,508,479,9,514,618,77,509,513,12],[534,293,100,626,314,100,450,311,100,672,397,94,422,393,79,597,348,94,500,351,80,569,429,100,472,428,100,548,505,95,466,521,51,525,584,78,500,487,12,518,591,56,500,481,10,514,618,79,499,515,14],[534,281,100,627,304,100,450,297,100,672,390,94,421,383,80,598,339,94,502,341,81,569,422,100,470,420,100,542,505,96,472,518,51,525,583,80,494,495,12,519,591,57,494,497,11,512,620,80,492,516,15],[538,267,100,630,293,100,450,284,100,673,380,95,419,372,81,599,329,94,504,329,83,569,413,100,470,409,100,538,505,96,477,510,54,525,583,82,493,495,15,519,591,59,494,499,13,511,621,82,487,515,18],[540,251,100,636,280,100,451,269,100,674,371,95,418,359,82,600,319,95,505,319,84,569,403,100,470,398,100,534,502,96,473,495,59,525,583,84,493,489,22,520,590,64,496,491,18,509,621,85,482,516,25],[545,236,100,642,269,100,452,256,100,676,359,95,418,346,83,604,309,95,506,309,86,569,395,100,469,388,100,533,498,97,471,487,63,525,583,87,483,486,28,520,590,67,492,486,21,509,622,87,473,516,31],[549,221,100,648,255,100,454,241,100,676,345,94,418,333,82,605,300,95,507,299,86,570,386,100,469,378,100,531,495,96,461,483,65,524,583,89,470,479,30,519,591,70,478,475,23,508,622,88,464,505,34],[553,203,100,653,241,100,456,226,100,676,333,94,418,319,80,606,297,95,507,292,86,570,375,100,469,366,100,529,492,96,443,476,68,523,582,90,462,457,32,518,591,72,468,453,24,508,622,90,455,477,36],[557,189,100,658,230,100,458,213,100,676,320,94,419,309,76,606,297,95,509,287,84,570,368,100,468,359,100,528,487,96,420,468,70,522,582,91,457,442,32,518,592,73,463,436,25,508,622,91,444,462,38],[560,176,100,661,220,100,461,202,100,677,309,93,419,297,74,606,298,95,510,288,85,569,363,100,467,354,100,527,485,96,391,460,73,521,582,93,462,443,33,517,592,74,468,442,26,509,622,92,452,474,39],[562,164,100,663,208,100,464,191,100,678,300,92,418,288,74,604,302,94,515,293,86,569,357,100,465,347,100,527,484,95,367,450,76,521,581,93,461,447,37,517,592,75,473,441,28,509,622,93,451,481,43],[565,153,100,666,200,100,466,183,100,680,292,92,418,278,74,603,306,93,519,296,87,569,354,100,463,344,100,528,483,95,350,445,79,521,580,94,452,448,40,517,592,76,473,442,30,510,622,93,439,484,46],[566,144,100,667,194,100,468,178,100,682,285,91,419,270,73,603,309,93,518,300,86,568,352,100,461,340,100,528,480,94,340,439,79,521,580,94,449,443,40,517,592,75,472,437,31,510,622,93,435,480,47],[566,135,100,669,190,100,469,174,100,682,282,91,419,265,73,605,322,93,515,304,86,567,352,100,458,338,100,528,479,93,326,434,79,521,579,94,444,435,39,517,591,73,469,429,30,510,622,93,431,474,46],[567,131,100,672,187,100,470,172,100,682,282,92,420,262,75,607,338,93,505,311,87,566,349,100,457,334,100,529,477,92,316,429,79,521,579,94,430,431,38,515,591,72,455,423,29,510,622,92,413,474,45],[568,127,100,674,185,100,471,170,100,682,283,92,421,263,79,611,352,94,500,321,89,567,345,100,458,330,100,529,476,91,306,427,80,520,579,94,419,431,37,514,591,70,445,423,27,510,622,92,401,475,44],[567,125,100,675,185,100,470,170,100,679,284,93,421,266,82,618,368,94,491,334,91,567,341,100,458,326,100,527,475,89,297,427,82,518,579,94,402,433,37,510,592,68,427,425,27,510,623,92,396,476,45],[567,125,100,676,186,100,471,170,100,676,285,94,421,268,85,627,378,95,481,345,92,566,342,100,457,325,100,522,474,90,301,429,84,516,579,94,395,436,40,508,592,68,419,428,28,510,623,92,390,478,48],[567,125,100,676,187,100,471,170,100,670,288,95,421,268,87,637,382,95,473,350,94,565,342,100,455,326,100,520,474,89,302,432,86,515,580,94,387,438,43,505,593,68,408,431,29,510,623,93,381,488,51],[566,126,100,676,188,100,472,169,100,667,290,95,421,269,89,649,381,96,469,354,95,562,342,100,450,326,100,518,474,89,306,434,87,514,580,94,380,449,44,504,594,66,401,445,29,508,624,93,364,501,52],[566,126,100,676,189,100,472,168,100,664,290,96,420,269,90,655,379,96,462,353,95,559,343,100,447,327,100,518,474,89,308,434,88,514,580,94,373,455,46,504,594,65,397,452,29,506,624,93,348,510,54],[566,126,100,676,188,100,472,169,100,664,289,96,418,270,92,662,378,96,461,355,96,554,342,100,442,326,100,518,473,89,306,441,88,514,580,94,360,464,45,505,593,61,386,461,28,505,624,92,332,516,54],[565,127,100,674,187,100,472,169,100,664,285,96,414,270,93,669,375,96,461,357,96,550,342,100,440,326,100,518,474,89,308,442,89,513,580,94,358,471,48,505,594,60,386,472,28,502,625,92,321,522,56],[565,128,100,668,185,100,470,170,100,666,281,96,411,271,94,675,373,97,462,360,97,549,343,100,439,327,100,517,474,89,308,443,90,513,580,94,345,479,51,504,592,59,376,483,29,502,625,92,321,532,59],[564,129,100,661,183,100,466,170,100,666,276,97,411,271,95,681,371,97,463,361,97,547,342,100,438,327,100,515,473,90,308,444,91,512,580,94,348,482,54,504,593,59,379,486,31,501,625,93,316,531,61]]};
+  const JOINTS = ['nose', 'lShoulder', 'rShoulder', 'lElbow', 'rElbow', 'lWrist', 'rWrist', 'lHip', 'rHip', 'lKnee', 'rKnee', 'lAnkle', 'rAnkle', 'lHeel', 'rHeel', 'lToe', 'rToe'];
+  const VIS = .5;
+  function poseFrame(i) { const A = POSE.k[i], o = {}; JOINTS.forEach((n, j) => { o[n] = { x: A[j * 3] / 1000 * POSE.w, y: A[j * 3 + 1] / 1000 * POSE.h, v: A[j * 3 + 2] / 100 }; }); return o; }
+  function poseAt(t) {
+    const f = Math.max(0, Math.min(POSE.k.length - 1, t * POSE.fps)), i = Math.floor(f), k = Math.min(POSE.k.length - 1, i + 1), a = f - i, A = poseFrame(i), B = poseFrame(k), o = {};
+    JOINTS.forEach(n => { o[n] = { x: A[n].x + (B[n].x - A[n].x) * a, y: A[n].y + (B[n].y - A[n].y) * a, v: Math.min(A[n].v, B[n].v) }; }); return o;
+  }
+  const squat = (() => {
+    const frames = POSE.k.map((_, i) => poseFrame(i)), n = frames.length;
+    const smooth = (arr, r = 2) => arr.map((_, i) => { let s = 0, c = 0; for (let k = Math.max(0, i - r); k <= Math.min(n - 1, i + r); k++) if (arr[k] !== null) { s += arr[k]; c++; } return c ? s / c : null; });
+    const hipY = frames.map(p => (p.lHip.y + p.rHip.y) / 2), top = [...hipY].sort((a, b) => a - b)[Math.floor(n * .1)];
+    const legs = frames.map(p => Math.hypot(p.lHip.x - p.lAnkle.x, p.lHip.y - p.lAnkle.y)), leg = [...legs].sort((a, b) => a - b)[Math.floor(n * .9)];
+    const ok = frames.map(p => Math.min(p.lHip.v, p.lKnee.v, p.lAnkle.v) >= VIS);
+    // FPPA: deviation of the stance (left) knee from the hip–ankle line in the image; + = toward midline (image left for a front-facing left leg)
+    const fppa = frames.map(p => { const u = [p.lKnee.x - p.lHip.x, p.lKnee.y - p.lHip.y], w = [p.lAnkle.x - p.lKnee.x, p.lAnkle.y - p.lKnee.y];
+      const d = Math.atan2(u[0] * w[1] - u[1] * w[0], u[0] * w[0] + u[1] * w[1]) * 180 / Math.PI; return -d; });
+    const tilt = frames.map(p => Math.atan2(p.rHip.y - p.lHip.y, p.lHip.x - p.rHip.x) * 180 / Math.PI);
+    const S = { depth: smooth(hipY.map(y => Math.max(0, (y - top) / leg * 100))), fppa: smooth(fppa), tilt: smooth(tilt) };
+    const occluded = []; let s0 = null; ok.forEach((g, i) => { if (!g && s0 === null) s0 = i; if ((g || i === n - 1) && s0 !== null) { occluded.push([s0 / POSE.fps, i / POSE.fps]); s0 = null; } });
+    const bottoms = []; S.depth.forEach((d, i) => { if (d < 35) return; const lo = Math.max(0, i - 15), hi = Math.min(n - 1, i + 15); for (let k = lo; k <= hi; k++) if (S.depth[k] > d) return; if (!bottoms.length || i - bottoms[bottoms.length - 1].i > 20) bottoms.push({ i, t: i / POSE.fps, depth: d, fppa: S.fppa[i], tilt: S.tilt[i], ok: ok[i] }); });
+    const coverage = JOINTS.map(j => [j, frames.filter(p => p[j].v >= VIS).length / n * 100]);
+    const at = (arr, t) => { const f = Math.max(0, Math.min(n - 1, t * POSE.fps)), i = Math.floor(f), k = Math.min(n - 1, i + 1); return arr[i] + (arr[k] - arr[i]) * (f - i); };
+    return {
+      key: 'squat', title: 'sample1.MOV', meta: `Front view · ${(n / POSE.fps).toFixed(1)} s · Real video`, duration: (n - 1) / POSE.fps, fps: POSE.fps, chip: 'Real video · Skeleton', badge: 'Real pose data',
+      bottoms, occluded, coverage, leg,
+      okAt(t) { return ok[Math.round(Math.max(0, Math.min(n - 1, t * POSE.fps)))]; },
+      repAt(t) { return bottoms.reduce((b, e, i) => Math.abs(e.t - t) < Math.abs(bottoms[b].t - t) ? i : b, 0); },
+      angles(t) { return { depth: at(S.depth, t), fppa: at(S.fppa, t), tilt: at(S.tilt, t) }; },
+      marks() { return bottoms.map(b => ({ t: b.t, na: !b.ok })); },
+      tabs: ['Now', 'Signal', 'Joints', 'Report'],
+      tiles(t) {
+        const a = this.angles(t), good = this.okAt(t);
+        return [
+          { label: 'Hip drop', value: a.depth.toFixed(0), unit: '% leg', st: 'valid', note: 'Observed' },
+          good ? { label: 'Knee FPPA', value: Math.abs(a.fppa).toFixed(0), unit: '°', st: 'valid', note: `Left · ${a.fppa >= 0 ? 'medial' : 'lateral'}` } : { label: 'Knee FPPA', value: null, st: 'unavailable', note: 'Low visibility' },
+          { label: 'Knee flexion', value: null, st: 'unavailable', note: 'Needs side view' }
+        ];
+      },
+      series: [{ name: 'Knee FPPA (left)', key: 'fppa', dash: [], color: '--s1' }, { name: 'Pelvic tilt · experimental', key: 'tilt', dash: [7, 5], color: '--s2' }],
+      yMin: -30, yMax: 40, unit: 'deg'
+    };
+  })();
+  /* ---------------- Mode: Tennis groundstrokes (rear view) ---------------- */
+  const tennis = {
+    key: 'tennis', title: 'Baseline groundstrokes · 01', meta: 'Rear view · 28.4 s · Synthetic, no tennis clip yet', duration: 28.4, fps: 60, chip: 'Tennis · Groundstrokes', badge: 'Demo data',
+    events: [
+      { t: 2.4, type: 'Forehand', peak: 4.3, knee: 38, elbow: 119 }, { t: 6.65, type: 'Backhand', peak: 4.6, knee: 46, elbow: 113 },
+      { t: 10.8, type: 'Forehand', peak: 4.8, knee: 42, elbow: 126 }, { t: 14.95, type: 'Forehand', peak: 5.1, knee: 44, elbow: 131 },
+      { t: 19.2, type: 'Backhand', peak: null, knee: null, elbow: null }, { t: 23.75, type: 'Forehand', peak: 4.7, knee: 40, elbow: 124 }
+    ],
+    occluded: [[18.7, 19.75]],
+    closest(t) { return this.events.reduce((b, e, i) => Math.abs(e.t - t) < Math.abs(this.events[b].t - t) ? i : b, 0); },
+    wrist(t) { return .2 + this.events.reduce((s, e) => s + ((e.peak || 4.2) - .2) * Math.exp(-(((t - e.t) / .3) ** 2)), 0); },
+    knee(t) { return 16 + Math.sin(t * 2.1) * 3 + this.events.reduce((s, e) => s + ((e.knee ?? 40) - 16) * Math.exp(-(((t - e.t) / .6) ** 2)), 0); },
+    elbow(t) { return 88 + Math.sin(t * 1.7) * 5 + this.events.reduce((s, e) => s + ((e.elbow ?? 118) - 88) * Math.exp(-(((t - e.t) / .6) ** 2)), 0); },
+    marks() { return this.events.map(e => ({ t: e.t, na: e.peak === null })); },
+    tabs: ['Now', 'Signal', 'Swings', 'Report'],
+    tiles(t) {
+      const occ = inR(t, this.occluded);
+      if (occ) return [{ label: 'Wrist speed', value: null, st: 'unavailable', note: 'Insufficient observation' }, { label: 'Knee flexion', value: null, st: 'unavailable', note: 'Insufficient observation' }, { label: 'Elbow angle', value: null, st: 'unavailable', note: 'Insufficient observation' }];
+      return [
+        { label: 'Wrist speed', value: this.wrist(t).toFixed(1), unit: 'torso/s', st: 'valid', note: 'Not racket' },
+        { label: 'Knee flexion', value: this.knee(t).toFixed(0), unit: '°', st: 'valid', note: 'Right · 2D' },
+        { label: 'Elbow angle', value: this.elbow(t).toFixed(0), unit: '°', st: 'valid', note: 'Right · 2D' }
+      ];
+    },
+    series: [{ name: 'Wrist speed', key: 'wrist', dash: [], color: '--s1' }],
+    yMin: 0, yMax: 6, unit: 'torso/s'
+  };
+  tennis.angles = t => ({ wrist: tennis.wrist(t), knee: tennis.knee(t), elbow: tennis.elbow(t) });
+
+  const state = { mode: squat, time: 0, playing: false, last: 0, tab: 'Now' };
+  const fpsOf = () => state.mode.fps;
+
+  /* ---------------- Drawer content ---------------- */
+  function renderTiles() {
+    byId('tiles').innerHTML = state.mode.tiles(state.time).map(x => `<div class="tile"><div class="label">${x.label}</div><div class="value">${x.value === null ? '—' : x.value + `<small>${x.unit}</small>`}</div><div class="state ${x.st}"><span class="icon">${icon(status[x.st][0])}</span>${x.note}</div></div>`).join('');
+    if (state.mode === tennis) { const i = tennis.closest(state.time), e = tennis.events[i]; byId('now-title').textContent = `Swing ${String(i + 1).padStart(2, '0')} · ${e.type}`; byId('now-sub').textContent = `Speed peak · ${fmt(e.t)} · image plane`; }
+    else { const r = squat.bottoms[squat.repAt(state.time)]; byId('now-title').textContent = 'This frame'; byId('now-sub').textContent = `Nearest rep bottom · ${fmt(r ? r.t : 0)} · image plane`; }
+  }
+  function renderTabs() {
+    byId('tabs').innerHTML = state.mode.tabs.map(t => `<button role="tab" aria-selected="${t === state.tab}" tabindex="${t === state.tab ? 0 : -1}" data-tab="${t}">${t}</button>`).join('');
+    byId('tabs').querySelectorAll('button').forEach((b, i, all) => {
+      b.addEventListener('click', () => { state.tab = b.dataset.tab; if (byId('drawer').dataset.snap === 'peek') setSnap('half'); renderTabs(); renderBody(); });
+      b.addEventListener('keydown', e => { if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return; const n = all[(i + (e.key === 'ArrowRight' ? 1 : -1) + all.length) % all.length]; n.click(); n.focus(); });
+    });
+  }
+  function legendSwatch(s) { return `<svg width="22" height="6"><line x1="1" y1="3" x2="21" y2="3" stroke="${css(s.color)}" stroke-width="2.5" stroke-dasharray="${s.dash.join(' ')}"/></svg>`; }
+  function renderBody() {
+    const m = state.mode, body = byId('drawer-body');
+    if (state.tab === 'Now') {
+      body.innerHTML = m === squat
+        ? `<div class="card"><h3>Rep bottoms · sample1</h3><p class="sub">Front view, left leg is the standing leg. Values are 2D measurements in the image plane.</p>
+           <div class="list" style="margin-top: 6px">${squat.bottoms.map((b, i) => `<button class="row" data-rep="${i}" aria-current="${i === squat.repAt(state.time)}"><span class="idx">${i + 1}</span><div class="main"><strong>Rep ${i + 1} bottom</strong><span class="num">${fmt(b.t)} · FPPA ${b.ok ? Math.abs(b.fppa).toFixed(0) + '° ' + (b.fppa >= 0 ? 'medial' : 'lateral') : '—'}</span></div><div class="val num">${b.depth.toFixed(0)}<small>% leg</small></div></button>`).join('')}</div></div>
+           <div class="alert" style="margin-top: 10px"><span class="icon">${icon('warning-circle')}</span><div><strong>Front view: knee flexion unavailable</strong>The standing knee moves toward the camera, so its 2D angle under-reads flexion. Record from the side to measure it. No scores, no advice.</div></div>`
+        : (() => { const i = tennis.closest(state.time), e = tennis.events[i]; const rows = [['Wrist speed peak', e.peak?.toFixed(1), 'torso/s', 'Relative to torso length · not racket speed', 'valid'], ['Right knee flexion', e.knee, '°', 'At speed-peak frame', 'valid'], ['Right elbow angle', e.elbow, '°', 'At speed-peak frame', 'valid'], ['Shoulder–hip separation', e.peak === null ? null : 15 + i * 1.5, '°', 'Excluded from trends', 'experimental'], ['Trunk lean', null, '', 'No vertical reference', 'unavailable']];
+            return `<div class="card"><h3>Swing ${String(i + 1).padStart(2, '0')} · ${e.type}</h3><p class="sub">Measured at speed peak · ${fmt(e.t)}</p><div class="list" style="margin-top: 6px">${rows.map(([n, v, u, note, st]) => { const na = v === null || v === undefined; const s = na ? 'unavailable' : st; return `<div class="row"><div class="main"><strong>${n}</strong><span>${na && e.peak === null && n !== 'Trunk lean' ? 'Insufficient observation' : note}</span></div><div class="val">${na ? '—' : v + ' ' + u}<small>${badge(s)}</small></div></div>`; }).join('')}</div></div>
+            <p class="footnote"><span class="icon">${icon('warning-circle')}</span>Speed peak is not ball contact. Measurements only.</p>`; })();
+      body.querySelectorAll('[data-rep]').forEach(b => b.addEventListener('click', () => { setPlaying(false); setTime(squat.bottoms[Number(b.dataset.rep)].t); renderBody(); }));
+    } else if (state.tab === 'Signal') {
+      body.innerHTML = `<div class="card"><h3>${m === squat ? 'Knee FPPA and pelvic tilt' : 'Racket-wrist speed'}</h3><p class="sub">Tap the chart to seek · arrow keys step frames</p>
+        <div class="chart"><canvas id="chart" tabindex="0" role="img" aria-label="${m === squat ? 'Knee frontal-plane projection angle and pelvic tilt' : 'Racket-wrist speed'} over time"></canvas></div>
+        <div class="legend">${m.series.map(s => `<span>${legendSwatch(s)}${s.name}</span>`).join('')}<span><svg width="22" height="6"><rect width="22" height="6" rx="3" fill="${css('--s1')}" opacity=".4"/></svg>Interpolated (40% opacity)</span><span><svg width="22" height="6"><rect width="22" height="6" fill="${css('--muted-foreground')}" opacity=".3"/></svg>Insufficient observation</span></div></div>`;
+      const c = byId('chart');
+      c.addEventListener('click', e => { const r = c.getBoundingClientRect(); setPlaying(false); setTime((e.clientX - r.left - 34) / (r.width - 44) * m.duration); });
+      c.addEventListener('keydown', e => { if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return; e.preventDefault(); setPlaying(false); setTime(state.time + (e.key === 'ArrowRight' ? 1 : -1) / fpsOf()); });
+      drawChart();
+    } else if (state.tab === 'Joints') {
+      const names = { nose: 'Nose', Shoulder: 'shoulder', Elbow: 'elbow', Wrist: 'wrist', Hip: 'hip', Knee: 'knee', Ankle: 'ankle', Heel: 'heel', Toe: 'foot index' };
+      const label = j => j === 'nose' ? 'Nose' : `${j[0] === 'l' ? 'Left' : 'Right'} ${names[j.slice(1)]}${j[0] === 'l' ? ' (standing)' : ' (lifted)'}`;
+      const joints = squat.coverage.filter(([j]) => !/Heel|Toe/.test(j));
+      body.innerHTML = `<div class="card"><h3>Observation coverage</h3><p class="sub">Share of frames with visibility ≥ ${VIS} (MediaPipe score). Lower = drawn hollow / dashed.</p><div class="list" style="margin-top: 6px">${joints.map(([j, v]) => `<div class="row"><span class="idx" style="color: ${j[0] === 'l' ? 'var(--left)' : j === 'nose' ? 'var(--foreground)' : 'var(--right)'}">${j === 'nose' ? 'N' : j[0].toUpperCase()}</span><div class="main"><strong>${label(j)}</strong><span>${v < 60 ? 'Often hidden or low confidence' : v < 90 ? 'Partly hidden' : 'Good coverage'}</span></div><div class="val num">${v.toFixed(1)}%</div></div>`).join('')}</div></div>`;
+    } else if (state.tab === 'Swings') {
+      body.innerHTML = `<div class="card"><h3>Swings</h3><p class="sub">Tap to jump to the speed peak</p><div class="list" style="margin-top: 6px">${tennis.events.map((e, i) => `<button class="row" data-i="${i}" aria-current="${i === tennis.closest(state.time)}"><span class="idx">${i + 1}</span><div class="main"><strong>${e.type}</strong><span class="num">${fmt(e.t)}${e.peak === null ? ' · Insufficient observation' : ''}</span></div><div class="val num">${e.peak === null ? '—' : e.peak.toFixed(1)}<small>${e.peak === null ? badge('unavailable') : 'torso/s'}</small></div></button>`).join('')}</div></div>`;
+      body.querySelectorAll('[data-i]').forEach(b => b.addEventListener('click', () => { setPlaying(false); setTime(tennis.events[Number(b.dataset.i)].t); renderBody(); }));
+    } else {
+      body.innerHTML = m === squat
+        ? `<div class="card empty"><span class="icon">${icon('barbell')}</span><h3>No gym report yet</h3><p>Gym recipes (rep counting, tempo, side-to-side comparison) come later. For now this clip shows the real-video skeleton, rep bottoms and frame measurements.</p><button class="button" style="margin-top: 14px" data-switch="tennis">View a tennis report</button></div>`
+        : `<div class="report-grid">
+            <div class="card"><div class="sub">Swings</div><div class="big">6<small>swings</small></div>${badge('valid')}<p class="sub" style="margin-top: 6px">Forehand 4 · Backhand 2</p></div>
+            <div class="card"><div class="sub">Mean speed peak</div><div class="big">4.7<small>torso/s</small></div>${badge('valid')}<p class="sub" style="margin-top: 6px">5 valid swings only</p></div>
+            <div class="card"><div class="sub">Shoulder–hip separation</div><div class="big">18<small>deg</small></div>${badge('experimental')}<p class="sub" style="margin-top: 6px">Excluded from trends</p></div>
+            <div class="card"><div class="sub">Trunk lean</div><div class="big">—</div>${badge('unavailable')}<p class="sub" style="margin-top: 6px">No vertical reference</p></div>
+          </div>
+          <div class="alert" style="margin-top: 10px"><span class="icon">${icon('warning-circle')}</span><div><strong>Swing 05 · Insufficient observation</strong>Its peak and angles are shown as “—”. Interpolation never makes a metric available.</div></div>
+          <button class="button" style="margin-top: 12px; width: 100%" id="export">Export JSON</button>`;
+      body.querySelectorAll('[data-switch]').forEach(b => b.addEventListener('click', () => setMode('tennis')));
+      const ex = byId('export'); if (ex) ex.addEventListener('click', () => toast('Mockup: demo JSON export'));
+    }
+  }
+
+  /* ---------------- Drawer snapping ---------------- */
+  const drawer = byId('drawer'), handle = byId('handle');
+  const desktop = () => matchMedia('(min-width: 960px)').matches;
+  function setSnap(s) { drawer.dataset.snap = s; drawer.style.transform = ''; handle.setAttribute('aria-expanded', String(s !== 'peek')); handle.setAttribute('aria-label', s === 'full' ? 'Collapse measurements' : 'Expand measurements'); setTimeout(drawChart, 280); }
+  handle.addEventListener('click', () => { if (handle.dataset.dragged) { delete handle.dataset.dragged; return; } setSnap({ peek: 'half', half: 'full', full: 'peek' }[drawer.dataset.snap]); });
+  let drag = null;
+  handle.addEventListener('pointerdown', e => { if (desktop()) return; drag = { y: e.clientY, start: drawer.getBoundingClientRect().top }; drawer.classList.add('dragging'); handle.setPointerCapture(e.pointerId); });
+  handle.addEventListener('pointermove', e => { if (!drag) return; const top = Math.max(72, Math.min(innerHeight - 140, drag.start + e.clientY - drag.y)); drawer.style.transform = `translateY(${top - (innerHeight - drawer.offsetHeight)}px)`; });
+  handle.addEventListener('pointerup', e => {
+    if (!drag) return; drawer.classList.remove('dragging'); const moved = Math.abs(e.clientY - drag.y) > 6; const top = drag.start + e.clientY - drag.y; drag = null;
+    if (!moved) { drawer.style.transform = ''; return; }
+    handle.dataset.dragged = '1'; const frac = top / innerHeight; setSnap(frac < .3 ? 'full' : frac < .7 ? 'half' : 'peek');
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && drawer.dataset.snap !== 'peek') setSnap('peek'); });
+
+  /* ---------------- Transport ---------------- */
+  function renderMarks() { byId('marks').innerHTML = state.mode.marks().map(k => `<i class="${k.na ? 'na' : ''}" style="left:${k.t / state.mode.duration * 100}%"></i>`).join(''); }
+  const clip = byId('clip');
+  const usesVideo = () => state.mode === squat;
+  function setTime(t, fromVideo) {
+    const m = state.mode, fps = fpsOf(); state.time = Math.max(0, Math.min(m.duration, t));
+    if (usesVideo() && !fromVideo && clip.readyState > 0) clip.currentTime = state.time;
+    const f = Math.round(state.time * fps); byId('scrub').max = Math.round(m.duration * fps); byId('scrub').value = f; byId('scrub').setAttribute('aria-valuetext', `${state.time.toFixed(2)} s, frame ${f}`);
+    byId('time').textContent = fmt(state.time); byId('chip-right').textContent = `F ${String(f).padStart(4, '0')}`;
+    renderTiles(); drawStage(); if (state.tab === 'Signal') drawChart();
+    if (m === tennis && state.tab === 'Now') { const i = tennis.closest(state.time); if (i !== state.nowSwing) { state.nowSwing = i; renderBody(); } }
+    if (m === squat && state.tab === 'Now') byId('drawer-body').querySelectorAll('[data-rep]').forEach(b => b.setAttribute('aria-current', String(Number(b.dataset.rep) === squat.repAt(state.time))));
+    if (state.tab === 'Swings' && !state.playing) byId('drawer-body').querySelectorAll('[data-i]').forEach(b => b.setAttribute('aria-current', String(Number(b.dataset.i) === tennis.closest(state.time))));
+  }
+  function onVideoFrame() { if (state.playing && usesVideo()) { setTime(clip.currentTime, true); clip.requestVideoFrameCallback(onVideoFrame); } }
+  function setPlaying(p) {
+    state.playing = p; state.last = 0; byId('play').firstElementChild.innerHTML = icon(p ? 'pause' : 'play'); byId('play').setAttribute('aria-label', p ? 'Pause' : 'Play');
+    if (usesVideo()) { clip.playbackRate = .5; if (p) { clip.play().catch(() => {}); if ('requestVideoFrameCallback' in clip) clip.requestVideoFrameCallback(onVideoFrame); } else clip.pause(); }
+  }
+  clip.addEventListener('timeupdate', () => { if (state.playing && usesVideo()) setTime(clip.currentTime, true); });
+  clip.addEventListener('ended', () => setPlaying(false));
+  const syncClip = () => { if (usesVideo() && clip.readyState > 0 && Math.abs(clip.currentTime - state.time) > .02) clip.currentTime = state.time; drawStage(); };
+  ['loadedmetadata', 'loadeddata', 'seeked'].forEach(ev => clip.addEventListener(ev, ev === 'seeked' ? () => drawStage() : syncClip));
+  byId('play').addEventListener('click', () => { if (state.time >= state.mode.duration - .02) setTime(0); setPlaying(!state.playing); });
+  byId('prev').addEventListener('click', () => { setPlaying(false); setTime(state.time - 1 / fpsOf()); });
+  byId('next').addEventListener('click', () => { setPlaying(false); setTime(state.time + 1 / fpsOf()); });
+  byId('scrub').addEventListener('input', e => { setPlaying(false); setTime(Number(e.target.value) / fpsOf()); });
+  function setMode(key) {
+    setPlaying(false); state.mode = key === 'tennis' ? tennis : squat; state.tab = 'Now';
+    document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === key)));
+    byId('clip-title').textContent = state.mode.title; byId('clip-meta').textContent = state.mode.meta; byId('demo-badge').textContent = state.mode.badge;
+    clip.hidden = key === 'tennis';
+    byId('chip-left').innerHTML = `<span class="icon">${icon(key === 'tennis' ? 'chart-line' : 'check-circle')}</span>${state.mode.chip}`;
+    byId('stage').setAttribute('aria-label', key === 'tennis' ? 'Synthetic tennis court with target-person skeleton; not real video' : 'sample1 video with MediaPipe skeleton overlay on the body');
+    state.time = key === 'tennis' ? 10.8 : squat.bottoms[1].t; renderMarks(); renderTabs(); renderBody(); setTime(state.time);
+  }
+  document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+  document.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => { setPlaying(false); byId(b.dataset.open).showModal(); }));
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
+  byId('import-button').addEventListener('click', () => byId('file').click());
+  byId('file').addEventListener('change', () => toast('Mockup: video stays on device, no analysis runs'));
+  function setTheme(th) { document.documentElement.dataset.theme = th; byId('theme-button').firstElementChild.innerHTML = icon(th === 'dark' ? 'sun' : 'moon'); byId('theme-button').setAttribute('aria-label', th === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'); renderBody(); drawStage(); }
+  byId('theme-button').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+
+  /* ---------------- Drawing ---------------- */
+  function fit(canvas) { const r = canvas.getBoundingClientRect(), d = devicePixelRatio || 1; canvas.width = Math.max(1, r.width * d); canvas.height = Math.max(1, r.height * d); const c = canvas.getContext('2d'); c.setTransform(d, 0, 0, d, 0, 0); return [c, r.width, r.height]; }
+  const rad = d => d * Math.PI / 180;
+  function videoBox(w, h) {
+    // Crop the source to the athlete's bounding box over the whole clip (+ margin), matched to the stage aspect ratio.
+    if (!squat.bbox) { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; POSE.k.forEach((_, i) => { const p = poseFrame(i); JOINTS.forEach(n => { x0 = Math.min(x0, p[n].x); x1 = Math.max(x1, p[n].x); y0 = Math.min(y0, p[n].y); y1 = Math.max(y1, p[n].y); }); }); squat.bbox = [x0, y0, x1, y1]; }
+    const [x0, y0r, x1, y1] = squat.bbox, y0 = y0r - (y1 - y0r) * .14, mx = (x1 - x0) * .18, my = (y1 - y0) * .05;
+    let cw = x1 - x0 + mx * 2, ch = y1 - y0 + my * 2; if (cw / ch < w / h) cw = ch * w / h; else ch = cw * h / w;
+    cw = Math.min(cw, POSE.w); ch = Math.min(ch, POSE.h); const s = Math.min(w / cw, h / ch); cw = w / s; ch = h / s;
+    const cx = Math.max(0, Math.min(POSE.w - cw, (x0 + x1) / 2 - cw / 2)), cy = Math.max(0, Math.min(POSE.h - ch, (y0 + y1) / 2 - ch / 2));
+    return { s, ox: -cx * s + Math.max(0, (w - POSE.w * s) / 2), oy: -cy * s + Math.max(0, (h - POSE.h * s) / 2) };
+  }
+  function tennisPose(t, w, h) {
+    const i = tennis.closest(t), e = tennis.events[i], ph = Math.max(-1, Math.min(1, (t - e.t) / .6)), dir = e.type === 'Forehand' ? 1 : -1, sw = ph * 1.6 * dir;
+    const s = Math.min(h / 520, w / 340), cx = w * .5, base = h * .86, P = (x, y) => [cx + x * s, base - y * s], j = {};
+    j.lAnkle = P(-38, 0); j.rAnkle = P(40, 0); j.lKnee = P(-34, 78); j.rKnee = P(36, 76); j.lHip = P(-24, 150); j.rHip = P(24, 150);
+    j.lShoulder = P(-44 + sw * 6, 262); j.rShoulder = P(44 + sw * 6, 262); j.nose = P(sw * 4, 304);
+    j.rElbow = [j.rShoulder[0] + Math.cos(-sw - .3) * 62 * s, j.rShoulder[1] + Math.sin(-sw - .3) * 40 * s + 20 * s];
+    j.rWrist = [j.rElbow[0] + Math.cos(-sw * 1.3 - .1) * 64 * s, j.rElbow[1] + Math.sin(-sw * 1.3 - .1) * 40 * s];
+    j.lElbow = P(-74 + sw * 10, 210); j.lWrist = P(-70 + sw * 18, 166);
+    return { j };
+  }
+  function drawBones(c, j, bones, hollow, selected) {
+    const col = k => k[0] === 'l' ? css('--left') : k[0] === 'r' ? css('--right') : '#e4e4e7';
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    bones.forEach(([a, b]) => { c.strokeStyle = '#000000b8'; c.lineWidth = 7; c.setLineDash([]); c.beginPath(); c.moveTo(...j[a]); c.lineTo(...j[b]); c.stroke(); });
+    bones.forEach(([a, b]) => { c.strokeStyle = '#ffffffeb'; c.lineWidth = 3; c.setLineDash(hollow.has(a) || hollow.has(b) ? [6, 5] : []); c.beginPath(); c.moveTo(...j[a]); c.lineTo(...j[b]); c.stroke(); });
+    c.setLineDash([]);
+    [...new Set(bones.flat())].forEach(k => { const p = j[k], sel = selected.includes(k); c.fillStyle = '#000000b8'; c.beginPath(); c.arc(p[0], p[1], sel ? 10 : 7.5, 0, 7); c.fill(); const cl = sel ? css('--select') : col(k);
+      if (hollow.has(k)) { c.strokeStyle = cl; c.lineWidth = 2.2; c.beginPath(); c.arc(p[0], p[1], 5, 0, 7); c.stroke(); } else { c.fillStyle = cl; c.beginPath(); c.arc(p[0], p[1], sel ? 7 : 5, 0, 7); c.fill(); } });
+  }
+  function angleArc(c, p, a1, a2, label, dim, lp) {
+    const r = 30; c.strokeStyle = css('--select'); c.globalAlpha = dim ? .4 : 1; c.lineWidth = 2; c.beginPath(); c.arc(p[0], p[1], r, a1, a2, a2 < a1); c.stroke(); c.globalAlpha = 1;
+    const mid = (a1 + a2) / 2, [lx, ly] = lp || [p[0] + Math.cos(mid) * (r + 22), p[1] + Math.sin(mid) * (r + 22)];
+    c.font = '600 13px -apple-system, "Segoe UI", sans-serif'; const tw = c.measureText(label).width;
+    c.fillStyle = '#000000c8'; c.beginPath(); c.roundRect(lx - tw / 2 - 7, ly - 11, tw + 14, 22, 11); c.fill(); c.fillStyle = '#fafafa'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(label, lx, ly); c.textBaseline = 'alphabetic';
+  }
+  function drawStage() {
+    const [c, w, h] = fit(byId('stage'));
+    if (state.mode === squat) {
+      c.fillStyle = '#0b0b0d'; c.fillRect(0, 0, w, h);
+      const { s, ox, oy } = videoBox(w, h), P = poseAt(state.time), j = {}, hollow = new Set();
+      if (clip.readyState >= 2) c.drawImage(clip, ox, oy, POSE.w * s, POSE.h * s);
+      else { c.fillStyle = '#a1a1aa'; c.font = '13px -apple-system, "Segoe UI", sans-serif'; c.textAlign = 'center'; c.fillText('Video not loaded · skeleton only', w / 2, h - 16); }
+      JOINTS.forEach(n => { j[n] = [ox + P[n].x * s, oy + P[n].y * s]; if (P[n].v < VIS) hollow.add(n); });
+      j.neck = [(j.lShoulder[0] + j.rShoulder[0]) / 2, (j.lShoulder[1] + j.rShoulder[1]) / 2];
+      const bones = [['lShoulder', 'rShoulder'], ['lShoulder', 'lElbow'], ['lElbow', 'lWrist'], ['rShoulder', 'rElbow'], ['rElbow', 'rWrist'], ['lShoulder', 'lHip'], ['rShoulder', 'rHip'], ['lHip', 'rHip'],
+        ['lHip', 'lKnee'], ['lKnee', 'lAnkle'], ['lAnkle', 'lHeel'], ['lHeel', 'lToe'], ['lAnkle', 'lToe'], ['rHip', 'rKnee'], ['rKnee', 'rAnkle'], ['rAnkle', 'rHeel'], ['rHeel', 'rToe'], ['rAnkle', 'rToe']];
+      c.strokeStyle = '#000000b8'; c.lineWidth = 7; c.lineCap = 'round'; c.beginPath(); c.moveTo(...j.nose); c.lineTo(...j.neck); c.stroke(); c.strokeStyle = '#ffffffeb'; c.lineWidth = 3; c.beginPath(); c.moveTo(...j.nose); c.lineTo(...j.neck); c.stroke();
+      const good = squat.okAt(state.time), a = squat.angles(state.time), K = j.lKnee, ext = [K[0] + (K[0] - j.lHip[0]) * .8, K[1] + (K[1] - j.lHip[1]) * .8];
+      c.strokeStyle = '#facc15aa'; c.lineWidth = 1.5; c.setLineDash([4, 4]); c.beginPath(); c.moveTo(...K); c.lineTo(...ext); c.stroke(); c.setLineDash([]);
+      drawBones(c, j, bones, hollow, ['lKnee']);
+      const ang = (p, q) => Math.atan2(q[1] - p[1], q[0] - p[0]);
+      angleArc(c, K, ang(K, ext), ang(K, j.lAnkle), good ? `FPPA ${Math.abs(a.fppa).toFixed(0)}° ${a.fppa >= 0 ? 'medial' : 'lateral'}` : 'FPPA —', !good, [Math.min(w - 70, K[0] + 82), K[1] - 4]);
+    } else {
+      const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#16261f'); g.addColorStop(1, '#1d4a3a'); c.fillStyle = g; c.fillRect(0, 0, w, h);
+      c.strokeStyle = '#ffffffa0'; c.lineWidth = 1.5; const hz = h * .3; c.beginPath(); c.moveTo(w * .2, hz); c.lineTo(w * .8, hz); c.moveTo(-w * .1, h); c.lineTo(w * .2, hz); c.moveTo(w * 1.1, h); c.lineTo(w * .8, hz); c.moveTo(w * .5, hz); c.lineTo(w * .5, h * .62); c.moveTo(w * .08, h * .62); c.lineTo(w * .92, h * .62); c.stroke();
+      const { j } = tennisPose(state.time, w, h), occ = inR(state.time, tennis.occluded);
+      j.neck = [(j.lShoulder[0] + j.rShoulder[0]) / 2, (j.lShoulder[1] + j.rShoulder[1]) / 2];
+      const bones = [['nose', 'neck'], ['lShoulder', 'rShoulder'], ['lHip', 'rHip'], ['lShoulder', 'lHip'], ['rShoulder', 'rHip'], ['lShoulder', 'lElbow'], ['lElbow', 'lWrist'], ['rShoulder', 'rElbow'], ['rElbow', 'rWrist'], ['lHip', 'lKnee'], ['lKnee', 'lAnkle'], ['rHip', 'rKnee'], ['rKnee', 'rAnkle']];
+      drawBones(c, j, bones.filter(b => !b.includes('neck')), occ ? new Set(['rWrist', 'rElbow']) : new Set(), ['rWrist']);
+      c.strokeStyle = '#000000b8'; c.lineWidth = 8; c.beginPath(); c.moveTo(...j.nose); c.lineTo(...j.neck); c.stroke(); c.strokeStyle = '#e4e4e7'; c.lineWidth = 3.5; c.beginPath(); c.moveTo(...j.nose); c.lineTo(...j.neck); c.stroke();
+    }
+  }
+  function drawChart() {
+    const cv = byId('chart'); if (!cv || !cv.isConnected || cv.getBoundingClientRect().width < 10) return;
+    const m = state.mode, [c, w, h] = fit(cv), L = 34, R = 10, T = 12, B = 40, pw = w - L - R, ph = h - T - B;
+    const yMin = m.yMin || 0, X = t => L + t / m.duration * pw, Y = v => T + ph - (Math.max(yMin, Math.min(m.yMax, v)) - yMin) / (m.yMax - yMin) * ph;
+    c.font = '11px -apple-system, "Segoe UI", sans-serif'; c.strokeStyle = css('--border'); c.fillStyle = css('--muted-foreground'); c.lineWidth = 1;
+    for (let k = 0; k <= 4; k++) { const v = yMin + (m.yMax - yMin) * k / 4; c.beginPath(); c.moveTo(L, Y(v)); c.lineTo(w - R, Y(v)); c.stroke(); c.textAlign = 'right'; c.fillText(String(Math.round(v * 10) / 10), L - 6, Y(v) + 4); }
+    c.textAlign = 'center'; const step = m.duration > 20 ? 7 : m.duration > 10 ? 3.5 : 2; for (let t = 0; t <= m.duration + .01; t += step) c.fillText(`${Math.round(t)}s`, X(t), h - 4);
+    m.occluded.forEach(([a, b]) => { c.globalAlpha = .22; c.fillStyle = css('--muted-foreground'); c.fillRect(X(a), T, X(b) - X(a), ph); c.globalAlpha = .5; c.fillStyle = css('--s1'); c.fillRect(X(a), T + ph + 3, X(b) - X(a), 5); c.globalAlpha = 1; });
+    const interpKey = m === squat ? 'fppa' : 'wrist';
+    m.series.forEach(s => {
+      const val = t => m.angles(t)[s.key];
+      const passes = s.key === interpKey ? [[t => !inR(t, m.occluded), 1], [t => inR(t, m.occluded), .4]] : [[() => true, 1]];
+      passes.forEach(([pred, alpha]) => {
+        c.strokeStyle = css(s.color); c.lineWidth = 2.2; c.setLineDash(s.dash); c.globalAlpha = alpha; c.beginPath(); let pen = false;
+        for (let i = 0; i <= 500; i++) { const t = m.duration * i / 500; if (pred(t)) { const p = [X(t), Y(val(t))]; pen ? c.lineTo(...p) : c.moveTo(...p); pen = true; } else pen = false; }
+        c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
+      });
+    });
+    m.marks().forEach(k => { const x = X(k.t); c.fillStyle = k.na ? css('--muted-foreground') : css('--foreground'); c.beginPath(); c.moveTo(x, T + ph + 12); c.lineTo(x - 5, T + ph + 20); c.lineTo(x + 5, T + ph + 20); c.fill(); });
+    const x = X(state.time); c.strokeStyle = css('--select'); c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, T); c.lineTo(x, T + ph); c.stroke();
+  }
+  function tick(ts) {
+    if (state.playing) {
+      if (usesVideo()) { if (!clip.paused) setTime(clip.currentTime, true); else if (clip.readyState < 2) { if (state.last) setTime(state.time + Math.min((ts - state.last) / 1000, .1) * .5, true); state.last = ts; } }
+      else { if (state.last) setTime(state.time + Math.min((ts - state.last) / 1000, .1) * .5); state.last = ts; }
+      if (state.time >= state.mode.duration) setPlaying(false);
+    }
+    requestAnimationFrame(tick);
+  }
+  new ResizeObserver(() => { drawStage(); drawChart(); }).observe(byId('stage-box'));
+  document.addEventListener('visibilitychange', () => { if (document.hidden) setPlaying(false); });
+
+  setTheme(matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  setMode('squat');
+  syncClip();
+  requestAnimationFrame(tick);
+</script>
+</body>
+</html>

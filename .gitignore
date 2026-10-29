@@ -1,0 +1,20 @@
+node_modules/
+dist/
+coverage/
+.wrangler/
+.dev.vars*
+!.dev.vars.example
+*.log
+.DS_Store
+
+# Private source footage (read-only, never committed)
+videos/
+
+# Model weights are downloaded, not committed
+*.task
+
+# Re-encoded copy of private footage; regenerate with designs/mockups/tools/extract_pose.py
+designs/mockups/assets/*.mp4
+
+# Editor settings
+.vscode/

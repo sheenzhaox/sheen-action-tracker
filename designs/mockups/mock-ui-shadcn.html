@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; media-src blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Action Tracker · Option A · Workbench</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #18181b; --foreground: #fafafa; --card: #202023;
+      --muted: #2a2a2e; --muted-foreground: #b4b4bd; --border: #3c3c44;
+      --input: #777782; --primary: #f97316; --primary-foreground: #18181b;
+      --accent: #303034; --primary-text: #fdba74; --ring: #fdba74;
+      --valid: #86d9a8; --warning: #fcd177; --experimental: #d3b9f4;
+      --radius: 6px; --left: #22d3ee; --right: #f97316;
+      --font: "Barlow", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --display: "Barlow Condensed", "Bahnschrift SemiCondensed", "Segoe UI", sans-serif;
+    }
+    [data-theme="light"] {
+      color-scheme: light;
+      --background: #fafafa; --foreground: #18181b; --card: #ffffff;
+      --muted: #f0f0f2; --muted-foreground: #595963; --border: #d8d8dd;
+      --input: #777782; --primary: #ea580c; --primary-foreground: #18181b;
+      --accent: #e9e9ed; --primary-text: #9a3412; --ring: #9a3412;
+      --valid: #166534; --warning: #854d0e; --experimental: #6b21a8;
+    }
+    * { box-sizing: border-box; }
+    html { margin: 0; scroll-behavior: smooth; }
+    body { margin: 0; background: var(--background); color: var(--foreground); font: 14px/1.5 var(--font); letter-spacing: 0; -webkit-text-size-adjust: 100%; }
+    button, input, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    button, a, input, select { -webkit-tap-highlight-color: transparent; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    :focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+    button { touch-action: manipulation; }
+    [hidden] { display: none !important; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 24px; font-weight: 650; line-height: 1.3; }
+    h2 { font-size: 15px; font-weight: 600; }
+    h3 { font-size: 14px; font-weight: 600; }
+    svg { display: block; }
+    .icon { display: inline-flex; flex: none; align-items: center; justify-content: center; }
+    .icon svg { width: 20px; height: 20px; }
+    .num { font-variant-numeric: tabular-nums; }
+    .muted { color: var(--muted-foreground); }
+    .tiny { font-size: 12px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; clip-path: inset(50%); overflow: hidden; white-space: nowrap; }
+    .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--input); border-radius: var(--radius); background: var(--card); font-weight: 550; white-space: nowrap; transition: background-color 150ms, color 150ms; }
+    .button:hover { background: var(--accent); }
+    .button.primary { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
+    .button.primary:hover { opacity: .9; }
+    .button.ghost { border-color: transparent; background: transparent; }
+    .button.ghost:hover { background: var(--accent); }
+    .button.icon-only { padding: 0; width: 44px; height: 44px; flex: none; }
+    .button[aria-pressed="true"] { background: var(--accent); color: var(--primary-text); }
+    .button[data-tip] { position: relative; }
+    .button[data-tip]:hover::after, .button[data-tip]:focus-visible::after { content: attr(data-tip); position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); padding: 5px 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--foreground); color: var(--background); font-size: 12px; pointer-events: none; white-space: nowrap; z-index: 3; }
+    .badge { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 550; white-space: nowrap; line-height: 1.6; }
+    .badge .icon svg { width: 13px; height: 13px; }
+    .valid { color: var(--valid); }
+    .experimental { color: var(--experimental); }
+    .unavailable { color: var(--muted-foreground); }
+    .app-header { min-height: 65px; padding: max(10px, env(safe-area-inset-top)) 24px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .brand { display: flex; align-items: center; gap: 11px; font: 650 20px var(--display); }
+    .brand-mark { width: 31px; height: 31px; border: 1px solid var(--primary); display: grid; place-items: center; border-radius: 6px; color: var(--primary-text); }
+    .brand-mark .icon svg { width: 22px; height: 22px; }
+    .header-meta { display: flex; align-items: center; gap: 16px; }
+    .local-status { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--muted-foreground); }
+    .local-status .icon svg { width: 15px; height: 15px; }
+    .app-shell { display: grid; grid-template-columns: 216px minmax(0, 1fr); min-height: calc(100vh - 65px); }
+    .sidebar { display: flex; flex-direction: column; padding: 24px 14px 18px; border-right: 1px solid var(--border); gap: 24px; }
+    .sidebar-label { font-size: 11px; color: var(--muted-foreground); padding: 0 10px 8px; }
+    .nav-item { width: 100%; min-height: 44px; border: 0; border-radius: var(--radius); background: transparent; display: flex; align-items: center; gap: 10px; padding: 10px; text-align: left; }
+    .nav-item:hover { background: var(--muted); }
+    .nav-item[aria-current="page"] { background: var(--accent); font-weight: 600; }
+    .nav-item .count { margin-left: auto; font-size: 11px; color: var(--muted-foreground); }
+    .record-button { display: flex; gap: 10px; align-items: flex-start; text-align: left; background: transparent; width: 100%; border: 1px solid transparent; border-radius: var(--radius); padding: 11px 9px; color: var(--muted-foreground); }
+    .record-button:hover { background: var(--muted); }
+    .record-button.active { border-color: var(--border); background: var(--card); color: var(--foreground); }
+    .record-button .record-marker { width: 3px; height: 30px; border-radius: 2px; margin-top: 3px; background: var(--border); }
+    .record-button.active .record-marker { background: var(--primary); }
+    .record-button strong { display: block; font-size: 12px; font-weight: 550; }
+    .record-button small { font-size: 11px; color: var(--muted-foreground); }
+    .sidebar-bottom { margin-top: auto; padding-top: 32px; }
+    .sidebar-bottom p { font-size: 11px; padding: 14px 10px 0; color: var(--muted-foreground); }
+    main { min-width: 0; padding: 26px 30px 16px; max-width: 1590px; width: 100%; margin: 0 auto; }
+    .breadcrumb { display: flex; align-items: center; gap: 8px; color: var(--muted-foreground); font-size: 12px; margin-bottom: 14px; }
+    .breadcrumb .icon svg { width: 12px; height: 12px; }
+    .page-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+    .page-title { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .page-subtitle { margin-top: 7px; font-size: 12px; color: var(--muted-foreground); }
+    .heading-actions { display: flex; gap: 8px; }
+    .workspace-toolbar { min-height: 55px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; }
+    .tabs-list { display: flex; gap: 4px; padding: 4px; border-radius: var(--radius); background: var(--muted); }
+    .tabs-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; border: 1px solid transparent; border-radius: 4px; padding: 0 18px; background: transparent; color: var(--muted-foreground); font-weight: 550; }
+    .tabs-trigger[aria-selected="true"] { border-color: var(--border); background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px #00000014; }
+    .toolbar-note { display: flex; gap: 7px; align-items: center; font-size: 11px; color: var(--muted-foreground); }
+    .toolbar-note .icon svg { width: 14px; height: 14px; }
+    .workspace-grid { display: grid; grid-template-columns: minmax(0, 1fr) 286px; }
+    .replay-column { min-width: 0; padding: 20px 24px 0 0; }
+    .viewer { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #101413; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    #court, #local-video { width: 100%; height: 100%; display: block; object-fit: contain; }
+    .viewer-top { position: absolute; inset: 12px 12px auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; pointer-events: none; }
+    .stage-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; background: #131614df; color: #f8fafc; border: 1px solid #ffffff3d; border-radius: 4px; font-size: 11px; }
+    .viewer-bottom { position: absolute; bottom: 12px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; pointer-events: none; }
+    .viewer-tools { display: flex; gap: 6px; pointer-events: auto; }
+    .viewer-tools .button { background: #16191be6; color: #fafafa; border-color: #ffffff55; width: 44px; height: 44px; min-height: 44px; }
+    .viewer:fullscreen { border: 0; border-radius: 0; aspect-ratio: auto; }
+    .transport { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 68px; }
+    .transport-group { display: flex; align-items: center; gap: 8px; }
+    .play-button { background: var(--foreground); color: var(--background); border-color: var(--foreground); }
+    .play-button:hover { background: var(--foreground); opacity: .85; }
+    .time-display { color: var(--muted-foreground); font-size: 12px; white-space: nowrap; }
+    .time-display strong { color: var(--foreground); font-weight: 550; }
+    select { background: var(--card); border: 1px solid var(--input); border-radius: var(--radius); padding: 0 8px; min-height: 36px; font-size: 13px; }
+    input[type="range"] { accent-color: var(--primary); width: 100%; min-height: 44px; cursor: pointer; margin: 0; }
+    .timeline-ticks { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted-foreground); }
+    .event-track { position: relative; height: 44px; margin: 0 10px; }
+    .event-pin { position: absolute; top: 0; width: 44px; height: 44px; border: none; padding: 0; transform: translateX(-50%); background: none; color: var(--muted-foreground); font-size: 10px; }
+    .event-pin::before { content: ""; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 5px solid currentColor; display: block; margin: 0 auto; }
+    .event-pin.active { color: var(--primary-text); }
+    .signal-section { margin-top: 15px; padding-top: 18px; border-top: 1px solid var(--border); }
+    .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .section-heading .tiny { color: var(--muted-foreground); }
+    .toggle-group { display: inline-flex; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: var(--radius); }
+    .toggle-group label { position: relative; cursor: pointer; }
+    .toggle-group input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; }
+    .toggle-group label span { min-height: 44px; padding: 5px 10px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted-foreground); font-size: 12px; }
+    .toggle-group input:checked + span { background: var(--muted); color: var(--foreground); }
+    .toggle-group input:focus-visible + span { outline: 2px solid var(--ring); outline-offset: 1px; }
+    .signal-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .signal-title { display: flex; align-items: baseline; gap: 8px; }
+    #signal-value { font: 600 24px var(--display); }
+    .chart-wrap { height: 155px; position: relative; margin-top: 8px; }
+    #signal-chart { display: block; width: 100%; height: 100%; cursor: crosshair; }
+    .chart-caption { font-size: 11px; display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted-foreground); margin-top: 8px; }
+    .series-key { display: inline-flex; align-items: center; gap: 6px; }
+    .line-key { display: inline-block; width: 14px; border-top: 2px solid var(--primary); }
+    .line-key.dashed { border-top-style: dashed; border-color: var(--muted-foreground); }
+    .inspector { min-width: 0; border-left: 1px solid var(--border); padding: 20px 0 0 23px; }
+    .inspector-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    .event-title { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+    .event-number { font: 500 35px var(--display); color: var(--muted-foreground); line-height: 1; }
+    .event-caption { font-size: 11px; color: var(--muted-foreground); padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+    .metric-row { padding: 16px 0; border-bottom: 1px solid var(--border); }
+    .metric-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted-foreground); }
+    .metric-number { font: 550 30px var(--display); margin-top: 6px; line-height: 1.2; }
+    .metric-number small { font: 400 12px var(--font); color: var(--muted-foreground); margin-left: 5px; }
+    .metric-reason { font-size: 11px; color: var(--muted-foreground); margin-top: 5px; }
+    .measurement-note { margin-top: 18px; display: flex; gap: 8px; font-size: 11px; color: var(--muted-foreground); line-height: 1.8; }
+    .measurement-note .icon svg { width: 16px; height: 16px; }
+    .event-section { border-top: 1px solid var(--border); margin-top: 24px; padding-top: 18px; }
+    .events-list { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+    .event-item { border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); padding: 10px 12px; text-align: left; min-height: 70px; }
+    .event-item:hover { background: var(--accent); }
+    .event-item[aria-pressed="true"] { border-color: var(--primary); background: var(--card); box-shadow: inset 0 2px var(--primary); }
+    .event-item strong { display: block; font-size: 12px; font-weight: 550; }
+    .event-item span { display: block; color: var(--muted-foreground); font-size: 11px; margin-top: 5px; }
+    .event-item[aria-pressed="true"] strong { color: var(--primary-text); }
+    .workspace-footer { padding: 22px 0 0; display: flex; justify-content: space-between; gap: 16px; color: var(--muted-foreground); font-size: 10px; }
+    .report-panel { padding-top: 24px; }
+    .report-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 20px 0 28px; }
+    .metric-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+    .metric-card h3 { font-size: 12px; color: var(--muted-foreground); font-weight: 400; }
+    .metric-card .metric-number { font-size: 34px; margin: 12px 0; }
+    .metric-card footer { font-size: 11px; color: var(--muted-foreground); }
+    .table-scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+    th { text-align: left; font-weight: 500; color: var(--muted-foreground); background: var(--muted); }
+    td, th { padding: 13px 15px; border-bottom: 1px solid var(--border); }
+    td:first-child, th:first-child { padding-left: 12px; }
+    td .button { min-height: 36px; padding: 0 8px; color: var(--primary-text); }
+    .alert { display: flex; align-items: flex-start; gap: 9px; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; font-size: 12px; }
+    .alert h3 { font-size: 12px; margin-bottom: 3px; }
+    .alert p { color: var(--muted-foreground); }
+    .empty { padding: 32px 16px; text-align: center; color: var(--muted-foreground); font-size: 13px; }
+    .empty .icon { margin-bottom: 8px; }
+    dialog { width: min(460px, calc(100% - 32px)); max-height: calc(100dvh - 40px); overflow-y: auto; margin: auto; padding: 24px; color: var(--foreground); background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 20px 70px #0004; }
+    dialog::backdrop { background: #0009; backdrop-filter: blur(3px); }
+    .dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 6px; }
+    .dialog-heading h2 { font-size: 18px; }
+    dialog > p { font-size: 12px; color: var(--muted-foreground); }
+    .field-group { display: flex; flex-direction: column; gap: 18px; margin-top: 22px; }
+    .field { display: flex; flex-direction: column; gap: 8px; }
+    .field > label, .field legend { font-size: 12px; font-weight: 550; }
+    .field select, .field input[type="file"] { min-height: 44px; font-size: 16px; width: 100%; }
+    .field input[type="file"] { border: 1px dashed var(--input); padding: 12px; border-radius: var(--radius); background: var(--background); font-size: 12px; }
+    .field input::file-selector-button { border: 1px solid var(--input); border-radius: 4px; background: var(--muted); color: var(--foreground); padding: 7px 10px; margin-right: 10px; }
+    .field-row { display: flex; gap: 16px; align-items: center; justify-content: space-between; min-height: 44px; }
+    .field-row label { display: inline-flex; align-items: center; flex: 1; min-height: 44px; font-size: 13px; cursor: pointer; }
+    .switch { appearance: none; width: 38px; height: 22px; flex: none; border: 1px solid var(--input); border-radius: 20px; background: var(--muted); position: relative; margin: 10px 0; cursor: pointer; }
+    .switch::after { content: ""; display: block; width: 16px; height: 16px; border-radius: 50%; position: absolute; left: 2px; top: 2px; background: var(--foreground); transition: left 150ms; }
+    .switch:checked { background: var(--primary); border-color: var(--primary); }
+    .switch:checked::after { left: 18px; background: var(--primary-foreground); }
+    .dialog-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+    .dialog-close { margin: -10px -10px 0 0; }
+    .dialog-records { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
+    .mobile-nav { display: none; }
+    #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); padding: 12px 16px; border: 1px solid var(--border); border-radius: 6px; background: var(--foreground); color: var(--background); font-size: 12px; box-shadow: 0 6px 24px #0003; pointer-events: none; }
+    @media (min-width: 1450px) { .workspace-grid { grid-template-columns: minmax(0, 1fr) 310px; } .viewer { aspect-ratio: 17 / 9; } }
+    @media (max-width: 1160px) { .app-shell { grid-template-columns: 180px minmax(0, 1fr); } main { padding: 24px 22px 16px; } .workspace-grid { grid-template-columns: minmax(0, 1fr) 240px; } .inspector { padding-left: 18px; } .replay-column { padding-right: 18px; } .events-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } .toolbar-note { display: none; } }
+    @media (max-width: 960px) { .app-shell { grid-template-columns: minmax(0, 1fr); } .sidebar { display: none; } main { max-width: 1000px; } .app-header { padding-right: 22px; padding-left: 22px; } }
+    @media (max-width: 700px) {
+      body { font-size: 14px; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+      .app-header { min-height: 62px; padding-right: 16px; padding-left: 16px; }
+      .brand { font-size: 18px; } .brand-mark { width: 28px; height: 28px; }
+      .header-meta { gap: 4px; } .local-status { display: none; }
+      main { padding: 18px 16px; } h1 { font-size: 22px; }
+      .breadcrumb { display: none; } .page-heading { margin-bottom: 16px; gap: 12px; }
+      .page-title { gap: 8px; } .page-subtitle { font-size: 11px; line-height: 1.7; }
+      .heading-actions { width: 100%; } .heading-actions .button { flex: 1; font-size: 13px; }
+      .workspace-toolbar { padding-bottom: 10px; } .tabs-trigger { min-height: 44px; padding: 0 17px; }
+      .workspace-grid { grid-template-columns: minmax(0, 1fr); }
+      .replay-column { padding: 16px 0 0; }
+      .viewer { aspect-ratio: 4 / 3; }
+      .viewer-top { inset: 9px 9px auto; } .viewer-bottom { bottom: 9px; left: 9px; right: 9px; }
+      .stage-tag { padding: 3px 6px; font-size: 10px; }
+      .transport { flex-wrap: wrap; gap: 0; min-height: 68px; }
+      .transport-group { gap: 2px; } .transport .button { width: 40px; height: 44px; }
+      .time-display { font-size: 11px; } .transport select { width: 61px; font-size: 12px; padding: 0 3px; min-height: 44px; }
+      .signal-section { margin-top: 10px; padding-top: 14px; }
+      .toggle-group label span { min-height: 44px; padding: 7px 9px; }
+      .chart-wrap { height: 148px; }
+      .inspector { border-left: 0; padding: 20px 0 0; margin-top: 20px; border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
+      .inspector-heading, .event-caption, .measurement-note, .event-title { grid-column: 1 / -1; }
+      .inspector-heading { margin-bottom: 14px; } .metric-row { padding: 13px 0; }
+      .metric-label { flex-wrap: wrap; justify-content: flex-start; gap: 5px; }
+      .metric-number { font-size: 28px; } .metric-number small { font-size: 11px; }
+      .measurement-note { margin-top: 12px; } .event-section { margin-top: 20px; }
+      .events-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .event-item { padding: 10px; min-height: 66px; }
+      .report-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .metric-card { padding: 14px; } .metric-card .metric-number { font-size: 30px; }
+      .workspace-footer { font-size: 10px; flex-wrap: wrap; gap: 4px; }
+      .mobile-nav { position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-around; padding: 6px 16px calc(6px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: var(--background); }
+      .mobile-nav button { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 3px; padding: 3px 16px; min-height: 52px; border: 0; background: transparent; font-size: 10px; color: var(--muted-foreground); }
+      .mobile-nav button:first-child { color: var(--primary-text); }
+      dialog { width: 100%; max-height: calc(100dvh - 24px); margin: auto 0 0; border-radius: 8px 8px 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom)); }
+      #toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation: none !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand"><span class="brand-mark"><span class="icon" data-phosphor="chart-line" aria-hidden="true"></span></span>Action Tracker<span class="badge" style="font-family: var(--font)">Option A · Workbench</span></div>
+    <div class="header-meta">
+      <span class="local-status"><span class="icon" data-phosphor="check-circle" aria-hidden="true"></span>Local workspace</span>
+      <button class="button ghost icon-only" id="theme-button" aria-label="Switch to light theme" data-tip="Toggle theme"><span class="icon" data-phosphor="sun" aria-hidden="true"></span></button>
+      <button class="button ghost icon-only" data-open="settings-dialog" aria-label="Open settings" data-tip="Settings"><span class="icon" data-phosphor="sliders-horizontal" aria-hidden="true"></span></button>
+    </div>
+  </header>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Workspace navigation">
+      <div>
+        <p class="sidebar-label">Workspace</p>
+        <button class="nav-item" aria-current="page" data-open="records-dialog"><span class="icon" data-phosphor="folder-simple" aria-hidden="true"></span>Analyses<span class="count">02</span></button>
+        <button class="nav-item" data-open="import-dialog"><span class="icon" data-phosphor="upload-simple" aria-hidden="true"></span>Import video</button>
+      </div>
+      <div>
+        <p class="sidebar-label">Recent</p>
+        <button class="record-button active" data-record="0"><span class="record-marker"></span><span><strong>Baseline groundstrokes · 01</strong><small>Today · 28.4 s · 6 swings</small></span></button>
+        <button class="record-button" data-record="1"><span class="record-marker"></span><span><strong>Side-on forehands · 02</strong><small>Today · 24.0 s · 6 swings</small></span></button>
+      </div>
+      <div class="sidebar-bottom">
+        <button class="nav-item" data-open="settings-dialog"><span class="icon" data-phosphor="sliders-horizontal" aria-hidden="true"></span>Settings & diagnostics</button>
+        <p>Local preview · nothing uploaded<br>Demo data · no cloud connection</p>
+      </div>
+    </aside>
+    <main id="main-content">
+      <div class="breadcrumb"><span>Analyses</span><span class="icon" data-phosphor="caret-right" aria-hidden="true"></span><span>Tennis · Groundstrokes</span></div>
+      <div class="page-heading">
+        <div>
+          <div class="page-title"><h1 id="record-title">Baseline groundstrokes · 01</h1><span class="badge" id="demo-badge">Demo data</span></div>
+          <p class="page-subtitle num" id="record-meta">29 Oct 2026 · 28.4 s · 1080p · 60 fps</p>
+        </div>
+        <div class="heading-actions">
+          <button class="button" id="export-button"><span class="icon" data-phosphor="download-simple" aria-hidden="true"></span>Export JSON</button>
+          <button class="button primary" data-open="import-dialog"><span class="icon" data-phosphor="upload-simple" aria-hidden="true"></span>Open video</button>
+        </div>
+      </div>
+      <div class="workspace-toolbar">
+        <div class="tabs-list" role="tablist" aria-label="Analysis view">
+          <button class="tabs-trigger" role="tab" id="tab-replay" aria-selected="true" aria-controls="panel-replay" tabindex="0"><span class="icon" data-phosphor="play" aria-hidden="true"></span>Replay</button>
+          <button class="tabs-trigger" role="tab" id="tab-report" aria-selected="false" aria-controls="panel-report" tabindex="-1"><span class="icon" data-phosphor="chart-line" aria-hidden="true"></span>Report</button>
+        </div>
+        <span class="toolbar-note"><span class="icon" data-phosphor="check-circle" aria-hidden="true"></span><span id="quality-summary">Time trusted · gated on raw observations</span></span>
+      </div>
+      <section id="panel-replay" role="tabpanel" aria-labelledby="tab-replay">
+        <div class="workspace-grid">
+          <div class="replay-column">
+            <div class="viewer" id="viewer">
+              <canvas id="court" role="img" aria-label="Synthetic tennis court with target-person skeleton; not real video"></canvas>
+              <video id="local-video" playsinline muted preload="metadata" hidden aria-label="Local video preview"></video>
+              <div class="viewer-top"><span class="stage-tag" id="view-label">Rear view · Target 01</span><span class="stage-tag" id="stage-source">Skeleton illustration · not video</span></div>
+              <div class="viewer-bottom">
+                <span class="stage-tag num" id="frame-label">FRAME 0648 / 1704</span>
+                <div class="viewer-tools">
+                  <button class="button icon-only" data-open="layers-dialog" aria-label="Layers & legend"><span class="icon" data-phosphor="stack" aria-hidden="true"></span></button>
+                  <button class="button icon-only" id="fullscreen-button" aria-label="Fullscreen replay"><span class="icon" data-phosphor="arrows-out" aria-hidden="true"></span></button>
+                </div>
+              </div>
+            </div>
+            <div class="transport">
+              <div class="transport-group">
+                <button class="button ghost icon-only" id="previous-frame" aria-label="Previous frame" data-tip="Previous frame"><span class="icon" data-phosphor="skip-back" aria-hidden="true"></span></button>
+                <button class="button icon-only play-button" id="play-button" aria-label="Play" data-tip="Play / pause"><span class="icon" data-phosphor="play" aria-hidden="true"></span></button>
+                <button class="button ghost icon-only" id="next-frame" aria-label="Next frame" data-tip="Next frame"><span class="icon" data-phosphor="skip-forward" aria-hidden="true"></span></button>
+              </div>
+              <span class="time-display num"><strong id="current-time">00:10.800</strong> / <span id="duration-label">00:28.400</span></span>
+              <label><span class="sr-only">Playback speed</span><select id="playback-rate"><option value="0.25">0.25×</option><option value="0.5" selected>0.5×</option><option value="1">1×</option></select></label>
+            </div>
+            <label for="timeline" class="sr-only">Playback position (frame)</label>
+            <input id="timeline" type="range" min="0" max="1703" step="1" value="648" aria-valuetext="10.8 s, frame 648">
+            <div class="timeline-ticks num"><span>00:00</span><span id="tick-quarter">00:07</span><span id="tick-half">00:14</span><span id="tick-three">00:21</span><span id="tick-end">00:28</span></div>
+            <div class="event-track" id="event-track" aria-label="Swing speed-peak markers"></div>
+            <div class="signal-section">
+              <div class="section-heading"><h2>Joint signal</h2><button class="button ghost" id="chart-mode" aria-pressed="false">Table</button></div>
+              <div class="signal-top">
+                <div class="toggle-group" role="group" aria-label="Joint signal selection">
+                  <label><input type="radio" name="signal" value="wrist" checked><span>Racket wrist</span></label>
+                  <label><input type="radio" name="signal" value="elbow"><span>R elbow</span></label>
+                  <label><input type="radio" name="signal" value="knee"><span>R knee</span></label>
+                </div>
+                <div class="signal-title num"><strong id="signal-value">4.8</strong><span class="tiny muted" id="signal-unit">torso/s</span></div>
+              </div>
+              <div class="chart-wrap" id="chart-wrap"><canvas id="signal-chart" role="img" tabindex="0" aria-label="Racket-wrist speed chart; left/right arrow keys step frames; table view available"></canvas></div>
+              <div class="table-scroll" id="signal-table-wrap" hidden><table><caption class="sr-only">Demo peak values of the selected joint per swing</caption><thead><tr><th>Swing</th><th>Time</th><th id="signal-column">Wrist speed</th><th>Status</th></tr></thead><tbody id="signal-table-body"></tbody></table></div>
+              <div class="chart-caption"><span class="series-key"><i class="line-key"></i><span id="series-label">Racket-wrist speed</span></span><span class="series-key"><i class="line-key dashed"></i>Hatched: insufficient observation</span><span>▲ Swing speed peak</span></div>
+            </div>
+          </div>
+          <aside class="inspector" aria-label="Current swing measurements">
+            <div class="inspector-heading"><h2>Current swing</h2><span class="badge">Image plane</span></div>
+            <div class="event-title"><span class="event-number num" id="event-number">03</span><h3 id="event-type">Forehand</h3></div>
+            <p class="event-caption num" id="event-caption">Speed peak · 00:10.800</p>
+            <div class="metric-row"><div class="metric-label">Wrist speed peak<span class="badge valid" data-status="peak"><span class="icon" data-phosphor="check-circle" aria-hidden="true"></span>Valid</span></div><div class="metric-number num" id="metric-peak">4.8<small>torso/s</small></div><p class="metric-reason">Relative to torso length · not racket speed</p></div>
+            <div class="metric-row"><div class="metric-label">Right knee flexion<span class="badge valid" data-status="knee"><span class="icon" data-phosphor="check-circle" aria-hidden="true"></span>Valid</span></div><div class="metric-number num" id="metric-knee">42<small>deg</small></div><p class="metric-reason">At speed-peak frame · 2D projected angle</p></div>
+            <div class="metric-row"><div class="metric-label">Right elbow angle<span class="badge valid" data-status="elbow"><span class="icon" data-phosphor="check-circle" aria-hidden="true"></span>Valid</span></div><div class="metric-number num" id="metric-elbow">126<small>deg</small></div><p class="metric-reason">At speed-peak frame · 2D projected angle</p></div>
+            <div class="metric-row"><div class="metric-label">Trunk lean<span class="badge unavailable"><span class="icon" data-phosphor="warning-circle" aria-hidden="true"></span>Unavailable</span></div><div class="metric-number">—</div><p class="metric-reason">No vertical reference</p></div>
+            <div class="measurement-note"><span class="icon" data-phosphor="warning-circle" aria-hidden="true"></span><p id="measurement-note">Speed peak is not ball contact. All values are demo data — measurements only, no technique judgement.</p></div>
+          </aside>
+        </div>
+        <section class="event-section" aria-labelledby="events-heading">
+          <div class="section-heading"><h2 id="events-heading">Swings <span class="tiny muted" id="event-count">/ 06</span></h2><span class="tiny muted" id="event-mix">Forehand 4 · Backhand 2</span></div>
+          <div class="events-list" id="events-list"></div>
+        </section>
+      </section>
+      <section class="report-panel" id="panel-report" role="tabpanel" aria-labelledby="tab-report" hidden>
+        <div class="section-heading"><h2>Measurement overview</h2><span class="badge" id="report-badge">Demo data</span></div>
+        <div class="alert" role="note"><span class="icon" data-phosphor="warning-circle" aria-hidden="true"></span><div><h3 id="report-alert-title">1 swing has insufficient observation in its key window</h3><p id="report-alert-text">Swing 05 peak and angles are unavailable; interpolation never makes a metric available.</p></div></div>
+        <div class="report-summary">
+          <article class="metric-card"><header><h3>Swings</h3></header><div class="metric-number num" id="report-count">6<small>swings</small></div><footer id="report-mix">Forehand 4 · Backhand 2</footer></article>
+          <article class="metric-card"><header><h3>Mean valid speed peak</h3></header><div class="metric-number num" id="report-speed">4.7<small>torso/s</small></div><footer><span class="badge valid" id="report-speed-status">Valid</span> <span id="report-speed-note">5 valid swings only</span></footer></article>
+          <article class="metric-card"><header><h3>Shoulder–hip separation (projected)</h3></header><div class="metric-number num" id="report-separation">18<small>deg</small></div><footer><span class="badge experimental"><span class="icon" data-phosphor="flask" aria-hidden="true"></span>Experimental</span> excluded from trends</footer></article>
+          <article class="metric-card"><header><h3>Trunk lean</h3></header><div class="metric-number">—</div><footer><span class="badge unavailable">Unavailable</span> No vertical reference</footer></article>
+        </div>
+        <div class="section-heading"><h2>Per-swing measurements</h2><span class="tiny muted">Measurement space: image / time</span></div>
+        <div class="table-scroll"><table><caption class="sr-only">Swings and measurement status</caption><thead><tr><th>Swing</th><th>Type</th><th>Speed-peak time</th><th>Wrist peak (torso/s)</th><th>Right knee flexion (deg)</th><th>Status</th></tr></thead><tbody id="report-table-body"></tbody></table></div>
+      </section>
+      <footer class="workspace-footer"><span id="footer-source">tennis.groundstroke · sample recipe · not a real analysis</span><span>Video stays on device · no network requests</span></footer>
+    </main>
+  </div>
+  <nav class="mobile-nav" aria-label="Main navigation"><button data-open="records-dialog"><span class="icon" data-phosphor="folder-simple" aria-hidden="true"></span>Analyses</button><button data-open="import-dialog"><span class="icon" data-phosphor="upload-simple" aria-hidden="true"></span>Import</button><button data-open="settings-dialog"><span class="icon" data-phosphor="sliders-horizontal" aria-hidden="true"></span>Settings</button></nav>
+  <dialog id="import-dialog" aria-labelledby="import-title" aria-describedby="import-description">
+    <div class="dialog-heading"><h2 id="import-title">Open local video</h2><button class="button ghost icon-only dialog-close" data-close aria-label="Close import"><span class="icon" data-phosphor="x" aria-hidden="true"></span></button></div>
+    <p id="import-description">Local preview only, nothing is uploaded. This prototype has no MediaPipe, so it produces no real measurements.</p>
+    <div class="field-group">
+      <div class="field"><label for="video-file">Video file</label><input id="video-file" type="file" accept="video/*"><span class="tiny muted" id="file-description">Normal 60 fps · clips up to 30 s recommended</span></div>
+      <div class="field"><label for="camera-view">Camera view</label><select id="camera-view"><option value="back">Rear</option><option value="side">Side</option></select></div>
+      <div class="field"><label for="dominant-hand">Racket hand</label><select id="dominant-hand"><option value="right">Right</option><option value="left">Left</option></select></div>
+    </div>
+    <div class="dialog-footer"><button class="button" data-close>Cancel</button><button class="button primary" id="open-video-button" disabled>Open preview</button></div>
+  </dialog>
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <div class="dialog-heading"><h2 id="settings-title">Settings & diagnostics</h2><button class="button ghost icon-only dialog-close" data-close aria-label="Close settings"><span class="icon" data-phosphor="x" aria-hidden="true"></span></button></div>
+    <div class="field-group">
+      <div class="field"><label for="theme-select">Appearance</label><select id="theme-select"><option value="dark">Dark</option><option value="light">Light</option></select></div>
+      <div class="field-row"><label for="skeleton-switch">Show skeleton</label><input class="switch" id="skeleton-switch" type="checkbox" role="switch" checked></div>
+      <div class="field-row"><label for="trail-switch">Show wrist path</label><input class="switch" id="trail-switch" type="checkbox" role="switch" checked></div>
+      <div class="alert"><span class="icon" data-phosphor="warning-circle" aria-hidden="true"></span><div><h3>Prototype status</h3><p>MediaPipe: not connected<br>Cloud sync: not connected<br>Data: synthetic sample / local preview</p></div></div>
+    </div>
+    <div class="dialog-footer"><button class="button" id="diagnostics-button">Export diagnostics JSON</button><button class="button primary" data-close>Done</button></div>
+  </dialog>
+  <dialog id="layers-dialog" aria-labelledby="layers-title">
+    <div class="dialog-heading"><h2 id="layers-title">Layers & legend</h2><button class="button ghost icon-only dialog-close" data-close aria-label="Close layers"><span class="icon" data-phosphor="x" aria-hidden="true"></span></button></div>
+    <div class="field-group">
+      <div class="field-row"><label for="layer-skeleton">Skeleton</label><input class="switch" id="layer-skeleton" type="checkbox" role="switch" checked></div>
+      <div class="field-row"><label for="layer-trail">Wrist path</label><input class="switch" id="layer-trail" type="checkbox" role="switch" checked></div>
+      <div class="alert"><span class="icon" data-phosphor="stack" aria-hidden="true"></span><div><h3>Skeleton source markers</h3><p>Cyan: body left · Orange: body right<br>Solid dot / line: observed · Hollow dot / dashed: interpolated<br>Yellow: selected joint · Hatched: insufficient observation</p></div></div>
+    </div>
+    <div class="dialog-footer"><button class="button primary" data-close>Done</button></div>
+  </dialog>
+  <dialog id="records-dialog" aria-labelledby="records-title">
+    <div class="dialog-heading"><h2 id="records-title">Analyses</h2><button class="button ghost icon-only dialog-close" data-close aria-label="Close analyses"><span class="icon" data-phosphor="x" aria-hidden="true"></span></button></div>
+    <p>Synthetic samples · not real analyses</p>
+    <div class="dialog-records"><button class="record-button active" data-record="0"><span class="record-marker"></span><span><strong>Baseline groundstrokes · 01</strong><small>Rear view · 28.4 s · 60 fps</small></span></button><button class="record-button" data-record="1"><span class="record-marker"></span><span><strong>Side-on forehands · 02</strong><small>Side view · 24.0 s · 60 fps</small></span></button></div>
+  </dialog>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+  <script>
+    const iconPaths = {
+      play: 'M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z',
+      pause: 'M200,32H160a16,16,0,0,0-16,16V208a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V48A16,16,0,0,0,200,32Zm0,176H160V48h40ZM96,32H56A16,16,0,0,0,40,48V208a16,16,0,0,0,16,16H96a16,16,0,0,0,16-16V48A16,16,0,0,0,96,32Zm0,176H56V48H96Z',
+      'skip-back': 'M199.81,34a16,16,0,0,0-16.24.43L64,109.23V40a8,8,0,0,0-16,0V216a8,8,0,0,0,16,0V146.77l119.57,74.78A15.95,15.95,0,0,0,208,208.12V47.88A15.86,15.86,0,0,0,199.81,34ZM192,208,64.16,128,192,48.07Z',
+      'skip-forward': 'M200,32a8,8,0,0,0-8,8v69.23L72.43,34.45A15.95,15.95,0,0,0,48,47.88V208.12a16,16,0,0,0,24.43,13.43L192,146.77V216a8,8,0,0,0,16,0V40A8,8,0,0,0,200,32ZM64,207.93V48.05l127.84,80Z',
+      'upload-simple': 'M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0ZM93.66,77.66,120,51.31V144a8,8,0,0,0,16,0V51.31l26.34,26.35a8,8,0,0,0,11.32-11.32l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,93.66,77.66Z',
+      'download-simple': 'M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z',
+      sun: 'M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z',
+      moon: 'M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z',
+      'sliders-horizontal': 'M40,88H73a32,32,0,0,0,62,0h81a8,8,0,0,0,0-16H135a32,32,0,0,0-62,0H40a8,8,0,0,0,0,16Zm64-24A16,16,0,1,1,88,80,16,16,0,0,1,104,64ZM216,168H199a32,32,0,0,0-62,0H40a8,8,0,0,0,0,16h97a32,32,0,0,0,62,0h17a8,8,0,0,0,0-16Zm-48,24a16,16,0,1,1,16-16A16,16,0,0,1,168,192Z',
+      'check-circle': 'M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z',
+      'warning-circle': 'M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z',
+      'chart-line': 'M232,208a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V48a8,8,0,0,1,16,0v94.37L90.73,98a8,8,0,0,1,10.07-.38l58.81,44.11L218.73,90a8,8,0,1,1,10.54,12l-64,56a8,8,0,0,1-10.07.38L96.39,114.29,40,163.63V200H224A8,8,0,0,1,232,208Z',
+      stack: 'M230.91,172A8,8,0,0,1,228,182.91l-96,56a8,8,0,0,1-8.06,0l-96-56A8,8,0,0,1,36,169.09l92,53.65,92-53.65A8,8,0,0,1,230.91,172ZM220,121.09l-92,53.65L36,121.09A8,8,0,0,0,28,134.91l96,56a8,8,0,0,0,8.06,0l96-56A8,8,0,1,0,220,121.09ZM24,80a8,8,0,0,1,4-6.91l96-56a8,8,0,0,1,8.06,0l96,56a8,8,0,0,1,0,13.82l-96,56a8,8,0,0,1-8.06,0l-96-56A8,8,0,0,1,24,80Zm23.88,0L128,126.74,208.12,80,128,33.26Z',
+      'arrows-out': 'M216,48V96a8,8,0,0,1-16,0V67.31l-42.34,42.35a8,8,0,0,1-11.32-11.32L188.69,56H160a8,8,0,0,1,0-16h48A8,8,0,0,1,216,48ZM98.34,146.34,56,188.69V160a8,8,0,0,0-16,0v48a8,8,0,0,0,8,8H96a8,8,0,0,0,0-16H67.31l42.35-42.34a8,8,0,0,0-11.32-11.32ZM208,152a8,8,0,0,0-8,8v28.69l-42.34-42.35a8,8,0,0,0-11.32,11.32L188.69,200H160a8,8,0,0,0,0,16h48a8,8,0,0,0,8-8V160A8,8,0,0,0,208,152ZM67.31,56H96a8,8,0,0,0,0-16H48a8,8,0,0,0-8,8V96a8,8,0,0,0,16,0V67.31l42.34,42.35a8,8,0,0,0,11.32-11.32Z',
+      'folder-simple': 'M216,72H130.67L102.93,51.2a16.12,16.12,0,0,0-9.6-3.2H40A16,16,0,0,0,24,64V200a16,16,0,0,0,16,16H216.89A15.13,15.13,0,0,0,232,200.89V88A16,16,0,0,0,216,72Zm0,128H40V64H93.33L123.2,86.4A8,8,0,0,0,128,88h88Z',
+      x: 'M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z',
+      'caret-right': 'M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z',
+      flask: 'M221.69,199.77,160,96.92V40h8a8,8,0,0,0,0-16H88a8,8,0,0,0,0,16h8V96.92L34.31,199.77A16,16,0,0,0,48,224H208a16,16,0,0,0,13.72-24.23ZM110.86,103.25A7.93,7.93,0,0,0,112,99.14V40h32V99.14a7.93,7.93,0,0,0,1.14,4.11L183.36,167c-12,2.37-29.07,1.37-51.75-10.11-15.91-8.05-31.05-12.32-45.22-12.81ZM48,208l28.54-47.58c14.25-1.74,30.31,1.85,47.82,10.72,19,9.61,35,12.88,48,12.88a69.89,69.89,0,0,0,19.55-2.7L208,208Z'
+    };
+    const byId = id => document.getElementById(id);
+    const iconMarkup = name => `<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="${iconPaths[name] || iconPaths['warning-circle']}"></path></svg>`;
+    document.querySelectorAll('[data-phosphor]').forEach(element => { element.innerHTML = iconMarkup(element.dataset.phosphor); });
+    const sampleEvents = [
+      { time: 2.4, type: 'Forehand', peak: 4.3, knee: 38, elbow: 119 },
+      { time: 6.65, type: 'Backhand', peak: 4.6, knee: 46, elbow: 113 },
+      { time: 10.8, type: 'Forehand', peak: 4.8, knee: 42, elbow: 126 },
+      { time: 14.95, type: 'Forehand', peak: 5.1, knee: 44, elbow: 131 },
+      { time: 19.2, type: 'Backhand', peak: null, knee: null, elbow: null },
+      { time: 23.75, type: 'Forehand', peak: 4.7, knee: 40, elbow: 124 }
+    ];
+    const state = { time: 10.8, duration: 28.4, fps: 60, selected: 2, signal: 'wrist', playing: false, lastTick: 0, rate: .5, local: false, objectUrl: null, view: 'back', record: 0 };
+    const video = byId('local-video');
+    const signals = { wrist: { label: 'Racket-wrist speed', unit: 'torso/s', limit: 6 }, elbow: { label: 'Right elbow angle', unit: 'deg', limit: 180 }, knee: { label: 'Right knee flexion', unit: 'deg', limit: 90 } };
+    function formatTime(seconds) {
+      const milliseconds = Math.max(0, Math.round(seconds * 1000));
+      return String(Math.floor(milliseconds / 60000)).padStart(2, '0') + ':' + String(Math.floor(milliseconds / 1000) % 60).padStart(2, '0') + '.' + String(milliseconds % 1000).padStart(3, '0');
+    }
+    function eventTime(event) { return event.time * (state.duration / 28.4); }
+    function closestEvent(time) { return sampleEvents.reduce((best, event, index) => Math.abs(eventTime(event) - time) < Math.abs(eventTime(sampleEvents[best]) - time) ? index : best, 0); }
+    function signalValue(time) {
+      const normalTime = time * 28.4 / state.duration;
+      if (state.signal === 'wrist') return .18 + sampleEvents.reduce((total, event) => total + ((event.peak || 4.2) - .18) * Math.exp(-Math.pow((normalTime - event.time) / .31, 2)), 0);
+      const baseline = position => state.signal === 'elbow' ? 85 + Math.sin(position * 1.8) * 5 : 17 + Math.sin(position * 2.2) * 3;
+      return baseline(normalTime) + sampleEvents.reduce((total, event) => {
+        const target = state.signal === 'elbow' ? (event.elbow ?? 120) : (event.knee ?? 42);
+        return total + (target - baseline(event.time)) * Math.exp(-Math.pow((normalTime - event.time) / .65, 2));
+      }, 0);
+    }
+    function toast(message) { byId('toast').textContent = message; byId('toast').hidden = false; clearTimeout(toast.timer); toast.timer = setTimeout(() => { byId('toast').hidden = true; }, 3200); }
+    function setTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      byId('theme-select').value = theme;
+      byId('theme-button').setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
+      byId('theme-button').firstElementChild.innerHTML = iconMarkup(theme === 'dark' ? 'sun' : 'moon');
+      drawChart();
+    }
+    function sizeCanvas(canvas) {
+      const bounds = canvas.getBoundingClientRect();
+      if (!bounds.width || !bounds.height) return null;
+      const ratio = Math.min(devicePixelRatio || 1, 2);
+      const width = Math.round(bounds.width * ratio), height = Math.round(bounds.height * ratio);
+      if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+      const context = canvas.getContext('2d'); context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      return { context, width: bounds.width, height: bounds.height };
+    }
+    function drawCourt() {
+      if (state.local) return;
+      const setup = sizeCanvas(byId('court')); if (!setup) return;
+      const { context: context, width, height } = setup;
+      context.clearRect(0, 0, width, height);
+      context.save(); context.scale(width / 900, height / 506);
+      context.fillStyle = '#b7c8be'; context.fillRect(0, 0, 900, 506);
+      context.fillStyle = '#435f50'; context.fillRect(0, 40, 900, 112);
+      context.fillStyle = '#365646';
+      for (let tree = 0; tree < 38; tree++) { context.beginPath(); context.arc(tree * 29 - 10, 52 + Math.sin(tree * 1.8) * 12, 31 + Math.sin(tree) * 9, 0, Math.PI * 2); context.fill(); }
+      context.fillStyle = '#3d564c'; context.fillRect(0, 97, 900, 72);
+      context.strokeStyle = '#a5b2a34d'; context.lineWidth = 1;
+      for (let fence = -100; fence < 1000; fence += 16) { context.beginPath(); context.moveTo(fence, 95); context.lineTo(fence + 80, 175); context.moveTo(fence + 80, 95); context.lineTo(fence, 175); context.stroke(); }
+      context.fillStyle = '#768c74'; context.fillRect(0, 169, 900, 337);
+      context.fillStyle = '#537f7b'; context.beginPath(); context.moveTo(238, 170); context.lineTo(663, 170); context.lineTo(866, 506); context.lineTo(36, 506); context.closePath(); context.fill();
+      for (let grain = 0; grain < 650; grain++) { const seed = Math.sin(grain * 17.13) * 12917; const horizontal = (seed - Math.floor(seed)) * 900; const vertical = 175 + ((grain * 23.1) % 331); context.fillStyle = grain % 2 ? '#ffffff08' : '#00000009'; context.fillRect(horizontal, vertical, 1.5, 1); }
+      context.strokeStyle = '#ecede2d9'; context.lineWidth = 2.3;
+      const courtLines = [[[238, 170], [663, 170], [866, 506], [36, 506], [238, 170]], [[278, 170], [131, 506]], [[623, 170], [771, 506]], [[194, 245], [709, 245]], [[127, 391], [799, 391]], [[450, 245], [450, 391]]];
+      for (const points of courtLines) { context.beginPath(); points.forEach((point, index) => index ? context.lineTo(...point) : context.moveTo(...point)); context.stroke(); }
+      context.fillStyle = '#252d2ade'; context.beginPath(); context.moveTo(178, 253); context.lineTo(725, 253); context.lineTo(725, 284); context.lineTo(178, 284); context.closePath(); context.fill();
+      context.strokeStyle = '#aeb8a555'; context.lineWidth = .7;
+      for (let mesh = 178; mesh <= 725; mesh += 9) { context.beginPath(); context.moveTo(mesh, 253); context.lineTo(mesh, 284); context.stroke(); }
+      for (let mesh = 256; mesh < 284; mesh += 6) { context.beginPath(); context.moveTo(178, mesh); context.lineTo(725, mesh); context.stroke(); }
+      context.strokeStyle = '#edece5'; context.lineWidth = 3; context.beginPath(); context.moveTo(176, 253); context.lineTo(450, 258); context.lineTo(727, 253); context.stroke();
+      const swing = Math.sin((state.time * 28.4 / state.duration - 10.8) * 3.2);
+      const center = 452 + Math.sin(state.time * .5) * 10;
+      const side = state.view === 'side';
+      const points = {
+        head: [center - 3, 224], neck: [center, 246],
+        leftShoulder: [center - (side ? 9 : 27), 256], rightShoulder: [center + (side ? 15 : 30), 253],
+        leftElbow: [center - 52, 283 - swing * 11], leftWrist: [center - 77, 269 - swing * 25],
+        rightElbow: [center + 57, 270 - swing * 18], rightWrist: [center + 89 + swing * 8, 240 - swing * 40],
+        leftHip: [center - 20, 325], rightHip: [center + 19, 323],
+        leftKnee: [center - 44, 368], rightKnee: [center + 47, 365],
+        leftAnkle: [center - 62, 417], rightAnkle: [center + 68, 414]
+      };
+      context.fillStyle = '#172d3050'; context.beginPath(); context.ellipse(center + 10, 428, 89, 11, -.08, 0, Math.PI * 2); context.fill();
+      function limb(from, to, color, lineWidth, dashed = false) { context.beginPath(); context.lineCap = 'round'; context.strokeStyle = color; context.lineWidth = lineWidth; context.setLineDash(dashed ? [7, 5] : []); context.moveTo(...points[from]); context.lineTo(...points[to]); context.stroke(); context.setLineDash([]); }
+      limb('leftHip', 'leftKnee', '#18222a', 24); limb('rightHip', 'rightKnee', '#18222a', 24);
+      limb('leftKnee', 'leftAnkle', '#d2ac8b', 14); limb('rightKnee', 'rightAnkle', '#d2ac8b', 14);
+      limb('leftAnkle', 'leftAnkle', '#fff', 20); limb('rightAnkle', 'rightAnkle', '#fff', 20);
+      context.fillStyle = '#e9e7da'; context.beginPath(); context.moveTo(center - 33, 248); context.lineTo(center + 34, 246); context.lineTo(center + 27, 318); context.lineTo(center - 28, 322); context.closePath(); context.fill();
+      limb('leftShoulder', 'leftElbow', '#deded0', 20); limb('rightShoulder', 'rightElbow', '#deded0', 20);
+      limb('leftElbow', 'leftWrist', '#d2ac8b', 13); limb('rightElbow', 'rightWrist', '#d2ac8b', 13);
+      context.fillStyle = '#c9aa8b'; context.beginPath(); context.ellipse(...points.head, 15, 20, -.1, 0, Math.PI * 2); context.fill();
+      context.fillStyle = '#313128'; context.beginPath(); context.ellipse(points.head[0] - 1, points.head[1] - 8, 16, 13, -.15, Math.PI, Math.PI * 2); context.fill();
+      if (byId('trail-switch').checked) { context.strokeStyle = '#fdba74bd'; context.lineWidth = 2; context.setLineDash([3, 6]); context.beginPath(); context.ellipse(center + 70, 258, 76, 67, -.6, 3.8, 6.5); context.stroke(); context.setLineDash([]); }
+      if (byId('skeleton-switch').checked) {
+        const segments = [['neck', 'head', '#f8fafc'], ['leftShoulder', 'rightShoulder', '#f8fafc'], ['neck', 'leftShoulder', '#f8fafc'], ['neck', 'rightShoulder', '#f8fafc'], ['leftShoulder', 'leftHip', '#22d3ee'], ['rightShoulder', 'rightHip', '#f97316'], ['leftHip', 'rightHip', '#f8fafc'], ['leftShoulder', 'leftElbow', '#22d3ee'], ['leftElbow', 'leftWrist', '#22d3ee'], ['rightShoulder', 'rightElbow', '#f97316'], ['rightElbow', 'rightWrist', '#f97316'], ['leftHip', 'leftKnee', '#22d3ee'], ['leftKnee', 'leftAnkle', '#22d3ee'], ['rightHip', 'rightKnee', '#f97316'], ['rightKnee', 'rightAnkle', '#f97316']];
+        for (const [from, to, color] of segments) { limb(from, to, '#000b', 6); limb(from, to, color, 3, to === 'leftWrist'); }
+        for (const [name, point] of Object.entries(points)) { context.beginPath(); context.arc(...point, 4, 0, Math.PI * 2); context.fillStyle = name.startsWith('left') ? '#22d3ee' : name.startsWith('right') ? '#f97316' : '#f8fafc'; if (name === 'leftWrist') context.fillStyle = '#263d3f'; context.fill(); context.strokeStyle = name === 'leftWrist' ? '#fff' : '#000b'; context.lineWidth = 2; context.stroke(); }
+        const selectedPoint = points[state.signal === 'knee' ? 'rightKnee' : state.signal === 'elbow' ? 'rightElbow' : 'rightWrist'];
+        context.beginPath(); context.arc(...selectedPoint, 7, 0, Math.PI * 2); context.fillStyle = '#fde047'; context.fill(); context.strokeStyle = '#fff'; context.lineWidth = 2; context.stroke();
+        context.fillStyle = '#111c'; context.fillRect(selectedPoint[0] + 13, selectedPoint[1] - 17, 91, 24);
+        context.fillStyle = '#fff'; context.font = '12px "Segoe UI", sans-serif'; context.fillText(state.signal === 'knee' ? 'R knee · selected' : state.signal === 'elbow' ? 'R elbow · selected' : 'R wrist · selected', selectedPoint[0] + 20, selectedPoint[1]);
+      }
+      context.restore();
+    }
+    function drawChart() {
+      const setup = sizeCanvas(byId('signal-chart')); if (!setup) return;
+      const { context, width, height } = setup; const styles = getComputedStyle(document.documentElement);
+      context.clearRect(0, 0, width, height);
+      if (!Number.isFinite(state.duration) || state.duration <= 0) return;
+      const left = 28, right = width - 8, top = 14, bottom = height - 23;
+      const horizontal = time => left + time / state.duration * (right - left);
+      const vertical = value => bottom - value / signals[state.signal].limit * (bottom - top);
+      context.font = '10px "Segoe UI", sans-serif'; context.textAlign = 'right';
+      for (let grid = 0; grid < 4; grid++) { const value = grid * signals[state.signal].limit / 3; const yPosition = vertical(value); context.strokeStyle = styles.getPropertyValue('--border'); context.lineWidth = .7; context.beginPath(); context.moveTo(left, yPosition); context.lineTo(right, yPosition); context.stroke(); context.fillStyle = styles.getPropertyValue('--muted-foreground'); context.fillText(value.toFixed(0), left - 7, yPosition + 3); }
+      if (!state.local) {
+        const start = horizontal(eventTime(sampleEvents[4]) - .35), end = horizontal(eventTime(sampleEvents[4]) + .35);
+        context.save(); context.beginPath(); context.rect(start, top, end - start, bottom - top); context.clip(); context.fillStyle = styles.getPropertyValue('--muted'); context.fillRect(start, top, end - start, bottom - top); context.strokeStyle = styles.getPropertyValue('--muted-foreground'); context.lineWidth = .6;
+        for (let stripe = start - 150; stripe < end + 150; stripe += 7) { context.beginPath(); context.moveTo(stripe, bottom); context.lineTo(stripe + 120, top); context.stroke(); } context.restore();
+        context.strokeStyle = styles.getPropertyValue('--primary'); context.lineWidth = 1.8; context.beginPath();
+        let drawing = false;
+        for (let sample = 0; sample <= 500; sample++) { const time = sample / 500 * state.duration; if (Math.abs(time - eventTime(sampleEvents[4])) < .35) { drawing = false; continue; } const xPosition = horizontal(time), yPosition = vertical(signalValue(time)); if (drawing) context.lineTo(xPosition, yPosition); else context.moveTo(xPosition, yPosition); drawing = true; }
+        context.stroke();
+        context.fillStyle = styles.getPropertyValue('--muted-foreground'); context.font = '9px sans-serif'; context.textAlign = 'center';
+        sampleEvents.forEach(event => context.fillText('▲', horizontal(eventTime(event)), top - 4));
+      } else { context.fillStyle = styles.getPropertyValue('--muted-foreground'); context.textAlign = 'center'; context.font = '12px "Segoe UI", sans-serif'; context.fillText('No pose data extracted yet', width / 2, height / 2); }
+      context.strokeStyle = styles.getPropertyValue('--foreground'); context.lineWidth = 1; context.beginPath(); context.moveTo(horizontal(state.time), top); context.lineTo(horizontal(state.time), bottom); context.stroke();
+      context.fillStyle = styles.getPropertyValue('--muted-foreground'); context.font = '10px "Segoe UI", sans-serif'; context.textAlign = 'center';
+      for (let tick = 0; tick <= 4; tick++) { const time = tick * state.duration / 4; context.fillText(Math.round(time) + 's', horizontal(time), height - 5); }
+    }
+    function renderEvents() {
+      const list = byId('events-list'), track = byId('event-track'); list.replaceChildren(); track.replaceChildren();
+      if (state.local) { list.innerHTML = '<div class="empty">Not analysed · local video preview only</div>'; return; }
+      sampleEvents.forEach((event, index) => {
+        const item = document.createElement('button'); item.className = 'event-item'; item.dataset.index = index; item.setAttribute('aria-pressed', String(index === state.selected));
+        item.innerHTML = `<strong>${String(index + 1).padStart(2, '0')} ${event.type}</strong><span class="num">${formatTime(eventTime(event)).slice(0, -1)}${event.peak === null ? ' · missing' : ''}</span>`;
+        item.addEventListener('click', () => selectEvent(index)); list.append(item);
+        const pin = document.createElement('button'); pin.className = 'event-pin' + (index === state.selected ? ' active' : ''); pin.style.left = eventTime(event) / state.duration * 100 + '%'; pin.textContent = String(index + 1); pin.dataset.index = index; pin.setAttribute('aria-label', `Swing ${index + 1}, ${formatTime(eventTime(event))}`); pin.addEventListener('click', () => selectEvent(index)); track.append(pin);
+      });
+    }
+    function renderTables() {
+      byId('report-table-body').replaceChildren(); byId('signal-table-body').replaceChildren();
+      if (state.local) return;
+      sampleEvents.forEach((event, index) => {
+        const value = state.signal === 'wrist' ? event.peak : state.signal === 'elbow' ? event.elbow : event.knee;
+        const status = event.peak === null ? '<span class="badge unavailable">Unavailable · insufficient observation</span>' : '<span class="badge valid">Valid</span>';
+        const reportRow = document.createElement('tr'); reportRow.innerHTML = `<td><button class="button ghost" aria-label="Replay swing ${index + 1}">${String(index + 1).padStart(2, '0')}</button></td><td>${event.type}</td><td class="num">${formatTime(eventTime(event))}</td><td class="num">${event.peak === null ? '—' : event.peak.toFixed(1)}</td><td class="num">${event.knee === null ? '—' : event.knee}</td><td>${status}</td>`;
+        reportRow.querySelector('button').addEventListener('click', () => { setTab('replay'); selectEvent(index); byId('tab-replay').focus(); }); byId('report-table-body').append(reportRow);
+        const signalRow = document.createElement('tr'); signalRow.innerHTML = `<td>${String(index + 1).padStart(2, '0')} ${event.type}</td><td class="num">${formatTime(eventTime(event))}</td><td class="num">${value === null ? '—' : value}</td><td>${status}</td>`; byId('signal-table-body').append(signalRow);
+      });
+    }
+    function renderInspector() {
+      const event = sampleEvents[state.selected]; const unavailable = state.local || event.peak === null;
+      byId('event-number').textContent = state.local ? '—' : String(state.selected + 1).padStart(2, '0');
+      byId('event-type').textContent = state.local ? 'Not analysed' : event.type;
+      byId('event-caption').textContent = state.local ? 'Local video preview only' : 'Speed peak · ' + formatTime(eventTime(event));
+      for (const key of ['peak', 'knee', 'elbow']) {
+        byId('metric-' + key).innerHTML = unavailable ? '—' : (key === 'peak' ? event[key].toFixed(1) : event[key]) + `<small>${key === 'peak' ? 'torso/s' : 'deg'}</small>`;
+        const badge = document.querySelector(`[data-status="${key}"]`); badge.className = 'badge ' + (unavailable ? 'unavailable' : 'valid'); badge.innerHTML = `<span class="icon">${iconMarkup(unavailable ? 'warning-circle' : 'check-circle')}</span>${unavailable ? 'Unavailable' : 'Valid'}`;
+      }
+      byId('measurement-note').textContent = state.local ? 'This prototype does not run MediaPipe; no skeleton, events or measurements are generated from local video.' : unavailable ? 'Insufficient observation in this swing’s key window, so peak and angles are not shown. The illustrated path does not make the measurement valid.' : 'Speed peak is not ball contact. All values are demo data — measurements only, no technique judgement.';
+    }
+    function updateTime() {
+      byId('current-time').textContent = formatTime(state.time);
+      byId('timeline').value = Math.round(state.time * state.fps);
+      byId('timeline').setAttribute('aria-valuetext', `${state.time.toFixed(3)} s, frame ${Math.round(state.time * state.fps)}${state.local ? ' (60 fps preview grid, not source frames)' : ''}`);
+      byId('frame-label').textContent = state.local ? 'Local video · not analysed' : 'FRAME ' + String(Math.round(state.time * state.fps)).padStart(4, '0') + ' / ' + String(Math.round(state.duration * state.fps)).padStart(4, '0');
+      const signalUnavailable = state.local || Math.abs(state.time - eventTime(sampleEvents[4])) < .35;
+      byId('signal-value').textContent = signalUnavailable ? '—' : signalValue(state.time).toFixed(state.signal === 'wrist' ? 1 : 0);
+      byId('signal-unit').textContent = signalUnavailable ? (state.local ? 'Not analysed' : 'Insufficient observation') : signals[state.signal].unit;
+      if (!state.local) {
+        const selected = closestEvent(state.time);
+        if (selected !== state.selected) { state.selected = selected; renderInspector(); }
+        document.querySelectorAll('.event-item').forEach(item => item.setAttribute('aria-pressed', String(Number(item.dataset.index) === state.selected)));
+        document.querySelectorAll('.event-pin').forEach(pin => pin.classList.toggle('active', Number(pin.dataset.index) === state.selected));
+      }
+      drawCourt(); drawChart();
+    }
+    function setTime(time, seek = true) { state.time = Math.max(0, Math.min(time, state.duration)); if (state.local && seek && video.readyState >= 1) video.currentTime = state.time; updateTime(); }
+    function setPlaying(playing) {
+      state.playing = playing;
+      byId('play-button').setAttribute('aria-label', playing ? 'Pause' : 'Play'); byId('play-button').firstElementChild.innerHTML = iconMarkup(playing ? 'pause' : 'play');
+      if (state.local) { if (playing) video.play().catch(() => { setPlaying(false); toast('This video cannot be played; try a compatible format.'); }); else video.pause(); }
+      state.lastTick = 0;
+    }
+    function selectEvent(index) { setPlaying(false); state.selected = index; setTime(eventTime(sampleEvents[index])); renderInspector(); }
+    function setTab(tab) {
+      if (tab === 'report') setPlaying(false);
+      ['replay', 'report'].forEach(name => { const active = name === tab; byId('tab-' + name).setAttribute('aria-selected', String(active)); byId('tab-' + name).tabIndex = active ? 0 : -1; byId('panel-' + name).hidden = !active; });
+      if (tab === 'replay') { drawCourt(); drawChart(); }
+    }
+    function renderDuration() {
+      byId('timeline').max = Math.max(0, Math.ceil(state.duration * state.fps) - 1); byId('duration-label').textContent = formatTime(state.duration);
+      [['tick-quarter', .25], ['tick-half', .5], ['tick-three', .75], ['tick-end', 1]].forEach(([id, fraction]) => { byId(id).textContent = formatTime(state.duration * fraction).slice(0, 5); });
+    }
+    function setTransportEnabled(enabled) {
+      ['previous-frame', 'play-button', 'next-frame', 'timeline', 'playback-rate'].forEach(id => { byId(id).disabled = !enabled; });
+      byId('previous-frame').setAttribute('aria-label', state.local ? 'Back 1/60 s (not a source-frame step)' : 'Previous frame');
+      byId('next-frame').setAttribute('aria-label', state.local ? 'Forward 1/60 s (not a source-frame step)' : 'Next frame');
+      byId('previous-frame').dataset.tip = state.local ? 'Back 1/60 s' : 'Previous frame';
+      byId('next-frame').dataset.tip = state.local ? 'Forward 1/60 s' : 'Next frame';
+    }
+    function setDemoRecord(index) {
+      setPlaying(false); video.pause(); video.removeAttribute('src'); video.load(); if (state.objectUrl) { URL.revokeObjectURL(state.objectUrl); state.objectUrl = null; }
+      state.local = false; state.record = index; state.duration = index === 0 ? 28.4 : 24; state.view = index === 0 ? 'back' : 'side'; state.selected = 2; state.time = eventTime(sampleEvents[2]);
+      byId('court').hidden = false; video.hidden = true;
+      byId('record-title').textContent = index === 0 ? 'Baseline groundstrokes · 01' : 'Side-on forehands · 02';
+      byId('record-meta').textContent = `29 Oct 2026 · ${state.duration.toFixed(1)} s · 1080p · 60 fps`;
+      byId('view-label').textContent = (state.view === 'back' ? 'Rear view' : 'Side view') + ' · Target 01';
+      byId('stage-source').textContent = 'Skeleton illustration · not video'; byId('demo-badge').textContent = 'Demo data'; byId('report-badge').textContent = 'Demo data';
+      byId('quality-summary').textContent = 'Time trusted · gated on raw observations'; byId('event-count').textContent = '/ 06'; byId('event-mix').textContent = 'Forehand 4 · Backhand 2';
+      byId('report-count').innerHTML = '6<small>swings</small>'; byId('report-mix').textContent = 'Forehand 4 · Backhand 2'; byId('report-speed').innerHTML = '4.7<small>torso/s</small>'; byId('report-separation').innerHTML = '18<small>deg</small>'; byId('report-speed-note').textContent = '5 valid swings only';
+      byId('report-speed-status').className = 'badge valid'; byId('report-speed-status').textContent = 'Valid';
+      byId('report-alert-title').textContent = '1 swing has insufficient observation in its key window'; byId('report-alert-text').textContent = 'Swing 05 peak and angles are unavailable; interpolation never makes a metric available.';
+      byId('footer-source').textContent = 'tennis.groundstroke · sample recipe · not a real analysis';
+      document.querySelectorAll('[data-record]').forEach(button => button.classList.toggle('active', Number(button.dataset.record) === index));
+      byId('records-dialog').close(); setTransportEnabled(true); renderDuration(); renderEvents(); renderTables(); renderInspector(); setTab('replay'); updateTime();
+    }
+    function downloadJson(name, content) { const url = URL.createObjectURL(new Blob([JSON.stringify(content, null, 2)], { type: 'application/json' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = name; document.body.append(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+    byId('export-button').addEventListener('click', () => {
+      downloadJson('action-tracker-' + (state.local ? 'preview' : 'demo') + '.json', { schema: 'action-tracker-ui-mock/1', demo: !state.local, analysisPerformed: false, measurementSpace: 'image', durationSeconds: state.duration, sourceFps: state.local ? null : 60, events: state.local ? [] : sampleEvents.map((event, index) => ({ id: index + 1, type: event.type, keySeconds: eventTime(event), wristSpeed: event.peak, unit: 'torso/s', kneeFlexion: event.knee, elbowAngle: event.elbow, status: event.peak === null ? 'unavailable' : 'valid', reason: event.peak === null ? 'insufficient_observation' : 'synthetic_demo' })) });
+      toast(state.local ? 'Exported preview metadata (no video, no measurements)' : 'Exported demo measurement JSON');
+    });
+    byId('diagnostics-button').addEventListener('click', () => { downloadJson('action-tracker-ui-diagnostics.json', { prototype: true, inference: 'not_connected', network: 'disabled', canvas2D: Boolean(byId('court').getContext('2d')), theme: document.documentElement.dataset.theme, viewport: { width: innerWidth, height: innerHeight } }); toast('Exported diagnostics (no video, names or poses)'); });
+    byId('theme-button').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+    byId('theme-select').addEventListener('change', event => setTheme(event.target.value));
+    document.querySelectorAll('[data-open]').forEach(button => button.addEventListener('click', () => { setPlaying(false); byId(button.dataset.open).showModal(); }));
+    document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
+    document.querySelectorAll('[data-record]').forEach(button => button.addEventListener('click', () => setDemoRecord(Number(button.dataset.record))));
+    document.querySelectorAll('[role="tab"]').forEach((tab, index, tabs) => {
+      tab.addEventListener('click', () => setTab(tab.id.replace('tab-', '')));
+      tab.addEventListener('keydown', event => { if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return; event.preventDefault(); const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length; tabs[next].click(); tabs[next].focus(); });
+    });
+    byId('play-button').addEventListener('click', () => { if (state.time >= state.duration - .02) setTime(0); setPlaying(!state.playing); });
+    byId('previous-frame').addEventListener('click', () => { setPlaying(false); setTime((Math.round(state.time * state.fps) - 1) / state.fps); });
+    byId('next-frame').addEventListener('click', () => { setPlaying(false); setTime((Math.round(state.time * state.fps) + 1) / state.fps); });
+    byId('timeline').addEventListener('input', event => { setPlaying(false); setTime(Number(event.target.value) / state.fps); });
+    byId('playback-rate').addEventListener('change', event => { state.rate = Number(event.target.value); video.playbackRate = state.rate; });
+    byId('fullscreen-button').addEventListener('click', async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else if (byId('viewer').requestFullscreen) await byId('viewer').requestFullscreen(); else toast('Fullscreen is not supported in this browser'); } catch { toast('Cannot enter fullscreen here'); } });
+    document.querySelectorAll('input[name="signal"]').forEach(input => input.addEventListener('change', () => { state.signal = input.value; byId('series-label').textContent = signals[state.signal].label; byId('signal-column').textContent = signals[state.signal].label; byId('signal-chart').setAttribute('aria-label', signals[state.signal].label + ' chart; arrow keys step frames; table view available'); renderTables(); updateTime(); }));
+    byId('chart-mode').addEventListener('click', () => { const tableVisible = byId('signal-table-wrap').hidden; byId('signal-table-wrap').hidden = !tableVisible; byId('chart-wrap').hidden = tableVisible; byId('chart-mode').textContent = tableVisible ? 'Chart' : 'Table'; byId('chart-mode').setAttribute('aria-pressed', String(tableVisible)); if (!tableVisible) drawChart(); });
+    byId('signal-chart').addEventListener('click', event => { const bounds = event.currentTarget.getBoundingClientRect(); const position = (event.clientX - bounds.left - 28) / (bounds.width - 36); setPlaying(false); setTime(Math.round(Math.max(0, Math.min(1, position)) * state.duration * state.fps) / state.fps); });
+    byId('signal-chart').addEventListener('keydown', event => { if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return; event.preventDefault(); setPlaying(false); setTime((Math.round(state.time * state.fps) + (event.key === 'ArrowRight' ? 1 : -1)) / state.fps); });
+    [['skeleton-switch', 'layer-skeleton'], ['trail-switch', 'layer-trail']].forEach(pair => pair.forEach(id => byId(id).addEventListener('change', event => { pair.forEach(other => { byId(other).checked = event.target.checked; }); drawCourt(); })));
+    byId('video-file').addEventListener('change', event => { const file = event.target.files[0]; const valid = Boolean(file && (file.type.startsWith('video/') || /\.(mov|mp4|m4v|webm|ogv)$/i.test(file.name))); byId('open-video-button').disabled = !valid; byId('file-description').textContent = valid ? file.name : 'Choose a playable video file'; });
+    byId('open-video-button').addEventListener('click', () => {
+      const file = byId('video-file').files[0]; if (!file) return;
+      setPlaying(false); if (state.objectUrl) URL.revokeObjectURL(state.objectUrl); state.objectUrl = URL.createObjectURL(file); state.local = true; state.time = 0; state.view = byId('camera-view').value; state.duration = 0;
+      setTransportEnabled(false);
+      video.src = state.objectUrl; video.playbackRate = state.rate; video.hidden = false; byId('court').hidden = true;
+      byId('record-title').textContent = file.name; byId('record-title').style.overflowWrap = 'anywhere'; byId('record-meta').textContent = 'Reading local video metadata…'; byId('demo-badge').textContent = 'Preview only'; byId('report-badge').textContent = 'Not analysed';
+      byId('view-label').textContent = state.view === 'back' ? 'Rear view' : 'Side view'; byId('stage-source').textContent = 'Local video · not analysed'; byId('quality-summary').textContent = 'Frame rate and real time not verified'; byId('event-count').textContent = '/ —'; byId('event-mix').textContent = 'No events extracted';
+      byId('report-count').textContent = '—'; byId('report-mix').textContent = 'No events extracted'; byId('report-speed').textContent = '—'; byId('report-separation').textContent = '—'; byId('report-speed-note').textContent = 'Not analysed'; byId('report-alert-title').textContent = 'Pose analysis has not run'; byId('report-alert-text').textContent = 'Local video is for preview only; there are no real measurements to export.'; byId('footer-source').textContent = 'Local video preview · pose inference not run';
+      byId('report-speed-status').className = 'badge unavailable'; byId('report-speed-status').textContent = 'Unavailable';
+      document.querySelectorAll('[data-record]').forEach(button => button.classList.remove('active'));
+      byId('import-dialog').close(); renderDuration(); renderEvents(); renderTables(); renderInspector(); setTab('replay'); updateTime();
+    });
+    video.addEventListener('loadedmetadata', () => { if (!state.local) return; if (!Number.isFinite(video.duration) || video.duration <= 0) { byId('record-meta').textContent = 'Cannot determine video duration; switch to a sample or reopen the video'; toast('Cannot determine video duration'); return; } state.duration = video.duration; byId('record-meta').textContent = `${state.duration.toFixed(1)} s · ${video.videoWidth} × ${video.videoHeight} · source frame rate not verified`; setTransportEnabled(true); renderDuration(); updateTime(); toast(state.duration > 30 ? 'Clip is longer than 30 s; still local preview only' : 'Video is previewed in this browser only'); });
+    video.addEventListener('timeupdate', () => { if (state.local) setTime(video.currentTime, false); });
+    video.addEventListener('ended', () => setPlaying(false));
+    video.addEventListener('error', () => { if (!state.local) return; setPlaying(false); byId('record-meta').textContent = 'The browser cannot decode this video; reopen a compatible format or switch to a sample'; toast('Cannot decode this video; no measurements were produced'); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) setPlaying(false); });
+    window.addEventListener('pagehide', () => { if (state.objectUrl) URL.revokeObjectURL(state.objectUrl); });
+    function animate(timestamp) { if (state.playing && !state.local) { if (state.lastTick) setTime(state.time + Math.min((timestamp - state.lastTick) / 1000, .1) * state.rate); state.lastTick = timestamp; if (state.time >= state.duration) setPlaying(false); } requestAnimationFrame(animate); }
+    const resizeObserver = new ResizeObserver(() => { drawCourt(); drawChart(); }); resizeObserver.observe(byId('viewer')); resizeObserver.observe(byId('chart-wrap'));
+    setTheme(matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    setDemoRecord(0); requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
