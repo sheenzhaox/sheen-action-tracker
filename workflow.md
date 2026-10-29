@@ -6,7 +6,7 @@
 
 - **阶段**：**P1 本地原型进行中**（2026-10-30 起）。P0 设计 v0.3 + UI/UX v0.2 已定稿；Q1–Q13 全部回应；UI 方案 **C** + shadcn/ui + Tailwind（ADR-014）。
 - **P1 进度**：脚手架 ✅（pnpm monorepo、Worker `/api/health`、诊断面板，typecheck / test / build 通过）→ 下一步 iPhone 诊断与 sample1 端到端（见"恢复项目"第 5 步）。
-- **云资源**：无；未部署；已 `git init`，尚无提交
+- **云资源**：无；未部署。代码在公开 GitHub 仓库 [sheenzhaox/sheen-action-tracker](https://github.com/sheenzhaox/sheen-action-tracker)（`main`）
 - **UI 原型**：界面只做英文；shadcn 风格**已选 [C · Mobile focus](designs/mockups/mock-ui-shadcn-c.html)**（A [Workbench](designs/mockups/mock-ui-shadcn.html) / B [Library + Session](designs/mockups/mock-ui-shadcn-b.html) 仅作参考）（见 [08 第 11.2 节](designs/08-ui-ux.md)）；**骨架画在真实身体上**（C 的单腿蹲已用 sample1 真实视频 + 离线 MediaPipe 结果），A/B 与网球模式仍为合成示意。
 - **设计文档**：[designs/README.md](designs/README.md)
 
@@ -50,9 +50,18 @@
 | Q12 | ~~首个网球包的范围与素材~~ | P1 分析包、labels 与 fixtures | ✅ **已确认（2026-10-30）**：① 先做正手 + 反手，发球放 P2；② 持拍手因人而异 → 运动员档案字段，大多数双手反手（ADR-015）；③ 近期没有网球素材，P1 先只用 sample1，素材到位后再做检测器 |
 | Q13 | ~~界面语言与配色~~ | 文案管理、P1 工作量 | ✅ **已确认（2026-10-29）：只做英文界面**；偏好 shadcn 风格，布局/风格已选 **C · Mobile focus**；配色暂保持橙色主色 + 深色默认 |
 | Q14 | iPhone 上如何通过 HTTPS 打开本地开发服务器？①`vite dev --host` + 本地自签证书（需在 iPhone 安装并信任根证书）；②`cloudflared` 临时隧道（无需账号资源，但流量经 Cloudflare） | P1 iPhone 诊断与性能实测 | 倾向 ①，待用户选择 |
-| Q15 | 开发环境：是否在系统上启用 `pnpm`（`corepack enable pnpm`）？何时做第一次 git 提交？ | 日常命令、版本管理 | 暂用 `corepack pnpm ...`；用户说提交时再提交 |
+| Q15 | 开发环境：是否在系统上启用 `pnpm`（`corepack enable pnpm`）？~~何时做第一次 git 提交？~~ | 日常命令 | 暂用 `corepack pnpm ...`；git 部分 ✅ 2026-10-30 已提交并推送到公开仓库 |
 
 ## 日志
+
+### 2026-10-30 · 创建 GitHub 仓库并首次推送
+
+- 用户确认：账号 **sheenzhaox**，仓库名 `sheen-action-tracker`，**公开**；包含 `gpt-idea.md` 和 `sample1-pose.json`（只是从 sample1 提取的骨架坐标，无画面）；不包含 `.vscode/`（已加入 `.gitignore`）。
+- 本机没有 `gh` CLI。用 Git Credential Manager 中已保存的 sheenzhaox 凭据调用 GitHub API 创建仓库，令牌未打印也未写入任何文件。
+- 提交身份只设在本仓库：`Xin Zhao <2567985+sheenzhaox@users.noreply.github.com>`（GitHub noreply 地址，不暴露真实邮箱）。
+- 推送前检查：没有视频、帧、模型文件；未发现密钥或个人路径。mockup C 引用的 `assets/sample1-360p.mp4` 不在仓库中，所以克隆后要先用 `extract_pose.py` 重新生成，C 的视频才能播放。
+- 首次提交 `625ded8`（67 个文件）已推送到 `main`。
+- 尚未添加 LICENSE：公开仓库没有许可证时，默认保留所有权利。
 
 ### 2026-10-30 · 恢复项目：Q12、设计收尾（token + ADR-014/015）、P1 脚手架
 

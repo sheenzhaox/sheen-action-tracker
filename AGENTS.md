@@ -126,4 +126,4 @@ corepack pnpm dev              # 本地开发 http://localhost:5173（SPA + Work
 - R2 Workers API 的 `put()` 支持 `sha256` 等校验选项（由存储层校验）；`onlyIf` 条件写入无法确认"仅当不存在时创建"，设计不依赖它（2026-10-29 核对）。
 - tasks-vision 1.2.0 的 `Landmark` 有 `visibility` 和可选 `presence`。
 - UI/UX 技能 ui-ux-pro-max v2.15.0 已全局安装在 `%USERPROFILE%\.agents\skills\ui-ux-pro-max\`；运行脚本用 conda 环境 ai313 的 Python（`%LOCALAPPDATA%\miniforge3\envs\ai313\python.exe`，需设 `PYTHONIOENCODING=utf-8`）。系统 PATH 中的 `python` 只是 Microsoft Store 占位程序。技能输出必须核对后才能写入（见 ADR-013）。
-- 已 `git init`（2026-10-30），尚无提交。提交前确认 `videos/`、`designs/mockups/assets/*.mp4` 被忽略。
+- Git：公开仓库 **https://github.com/sheenzhaox/sheen-action-tracker**（分支 `main`，2026-10-30 首次推送）。本仓库的提交身份为 `Xin Zhao <2567985+sheenzhaox@users.noreply.github.com>`（仅本仓库 config）；凭据由 Git Credential Manager 保存（账号 sheenzhaox），本机无 `gh` CLI。**仓库公开**：提交前确认不含视频、帧、模型文件和密钥（`videos/`、`*.task`、`designs/mockups/assets/*.mp4`、`.vscode/` 已忽略）。
