@@ -125,7 +125,7 @@ corepack pnpm dev              # 本地开发 http://localhost:5173（SPA + Work
 - MediaPipe `@mediapipe/tasks-vision` npm 最新版 1.2.0（Apache-2.0）；模型大小 lite 5.5 MB / full 9.0 MB / heavy 29.2 MB。
 - Workers 静态资源单文件上限 25 MiB；Workers AI 无姿态模型（均于 2026-10-29 核对）。
 - 手机浏览器是一等目标平台（ADR-010）：**iPhone Safari 为主平台和验收平台**（iOS 17+，推荐 18.4+ 以获得完整 Wake Lock）；iPhone 上所有浏览器都是 WebKit 内核；桌面次之；Android Chrome 尽力支持；Firefox Android 无 WebCodecs。手机测试需要 HTTPS 安全上下文；开发机是 Windows，调试 iPhone 主要靠应用内诊断面板。
-- 用户 iPhone 实测（2026-10-30，iOS 27.2，iPhone 上的 Chrome，WebKit 内核）：WebCodecs 可解码 HEVC Main10 4K（`isConfigSupported`）、H.264 编解码、WebGPU、WebGL 2、OffscreenCanvas、OPFS（配额 38 GiB）、Wake Lock、rVFC 均可用；未跨源隔离；`deviceMemory` 不可用；`hardwareConcurrency` = 4。
+- 用户 iPhone 实测（2026-10-30，iOS 27.2，iPhone 上的 Chrome，WebKit 内核）：WebCodecs 可解码 HEVC Main10 4K（`isConfigSupported`）、H.264 编解码、WebGPU、WebGL 2、OffscreenCanvas、OPFS（配额 38 GiB）、Wake Lock、rVFC 均可用；未跨源隔离；`deviceMemory` 不可用；`hardwareConcurrency` = 4。**原始 sample1.MOV（HEVC HDR、竖屏）端到端分析与回放正常**；34 s 4K30 H.264：full · 1280 · GPU 每帧推理 P50 53 ms，总耗时 1.64×（推理占 98%）。
 - 部署域名：v1 使用 workers.dev，不用自定义域名；Access 用 workers.dev 主机名 + `/api` 路径的 self-hosted 应用，禁止开启 Worker 级 Access。
 - 典型视频片段约 30 s（Q9）；每用户云端配额默认 1 GB（30 s 分析约 3–4 MB，约 250–350 次）。
 - R2 Workers API 的 `put()` 支持 `sha256` 等校验选项（由存储层校验）；`onlyIf` 条件写入无法确认"仅当不存在时创建"，设计不依赖它（2026-10-29 核对）。

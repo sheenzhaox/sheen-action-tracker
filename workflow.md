@@ -5,7 +5,7 @@
 ## 当前状态
 
 - **阶段**：**P1 本地原型进行中**（2026-10-30 起）。P0 设计 v0.3 + UI/UX v0.2 已定稿；Q1–Q13 全部回应；UI 方案 **C** + shadcn/ui + Tailwind（ADR-014）。
-- **P1 进度**：脚手架 ✅ → iPhone 诊断 ✅ → **sample1 端到端 ✅** → iPhone 实测 4K H.264 ✅（1.64×）→ 性能测试设置 ✅ → **待：iPhone 上各设置对比 + 原始 sample1.MOV（HEVC HDR）**。
+- **P1 进度**：脚手架 ✅ → iPhone 诊断 ✅ → **sample1 端到端 ✅** → iPhone 实测 4K H.264 ✅（1.64×）→ **iPhone 原始 sample1.MOV（HEVC HDR、竖屏）✅** → 性能测试设置 ✅ → **待：iPhone 上各设置对比**。
 - **云资源**：1 个 Worker `action-tracker`，地址 https://action-tracker.sheenzhaox.workers.dev（2026-10-30 部署，用户授权；无 D1 / R2 / Access）。代码在公开 GitHub 仓库 [sheenzhaox/sheen-action-tracker](https://github.com/sheenzhaox/sheen-action-tracker)（`main`）
 - **UI 原型**：界面只做英文；shadcn 风格**已选 [C · Mobile focus](designs/mockups/mock-ui-shadcn-c.html)**（A [Workbench](designs/mockups/mock-ui-shadcn.html) / B [Library + Session](designs/mockups/mock-ui-shadcn-b.html) 仅作参考）（见 [08 第 11.2 节](designs/08-ui-ux.md)）；**骨架画在真实身体上**（C 的单腿蹲已用 sample1 真实视频 + 离线 MediaPipe 结果），A/B 与网球模式仍为合成示意。
 - **设计文档**：[designs/README.md](designs/README.md)
@@ -53,6 +53,16 @@
 | Q15 | 开发环境：是否在系统上启用 `pnpm`（`corepack enable pnpm`）？~~何时做第一次 git 提交？~~ | 日常命令 | 暂用 `corepack pnpm ...`；git 部分 ✅ 2026-10-30 已提交并推送到公开仓库 |
 
 ## 日志
+
+### 2026-10-30 · iPhone 上原始 sample1.MOV 跑通
+
+- 用户确认：iPhone 上用原始 sample1.MOV（HEVC Main10 + HLG + Dolby Vision，3840 × 2160，旋转 90°，59.97 fps，7.72 s）分析和回放都**正常**。
+- 由此确认：
+  - WebCodecs 能解码 iPhone 默认格式（HEVC 10-bit HDR），`isConfigSupported` 的结果属实；不需要 `<video>` 回退，也不需要提示用户改用"兼容性最佳"格式。
+  - tkhd 旋转矩阵处理正确，竖屏视频显示和骨架都是正的。
+  - HDR 帧绘制到 sRGB OffscreenCanvas 后，模型能正常检出姿态，骨架贴合身体。
+- 尚未记录 sample1 在 iPhone 上的 Run report 数值（解码帧格式、色彩空间、每帧推理耗时、60 fps 下的总耗时比）。下次用 sample1 跑性能测试时一并复制。
+- 02 第 3 节"HEVC / HDR 兼容策略"中，"可解码"这一行在 iPhone 上已被证实。不同 HDR 转换路径对关键点精度的影响仍未量化（P1 spike 项）。
 
 ### 2026-10-30 · 性能测试设置 + 骨架圆点按人物大小缩放
 
