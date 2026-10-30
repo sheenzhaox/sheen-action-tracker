@@ -1,6 +1,6 @@
 # Action Tracker 设计系统 · MASTER
 
-> 状态：v0.2 草案（仅设计）· 更新：2026-10-30（按选定方案 C 统一 token，对齐 shadcn/ui 变量名，ADR-014）
+> 状态：v0.2 草案 · 更新：2026-10-30（按选定方案 C 统一 token，对齐 shadcn/ui 变量名，ADR-014；骨架尺寸随人物大小缩放，见 3.3）
 > 来源：[ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) v2.15.0 生成后，按本项目约束**核对并修订**（对比度均已计算）。
 > 生成命令：`search.py "fitness gym app dark mode" --design-system -p "Action Tracker" --variance 3 --motion 2 --density 6`（产品类型匹配为 Fitness/Gym App）。
 
@@ -81,6 +81,13 @@
 | `observed` | 实心圆 r = 4 | 实线 3 px |
 | `interpolated` | 空心圆（白描边）r = 4 | 虚线 4/4 |
 | `missing` / `rejected` | 不画 | 不画（诊断模式下 `rejected` 画 × ） |
+
+**按人物大小缩放**（2026-10-30 用户反馈：人物较小时圆点相对骨骼太大，骨线看不清）：上表的尺寸是人物正常大小时的值。每帧按屏幕上的躯干长度（肩到髋，取可见两侧的平均；看不到肩和髋时取可见关节纵向范围 × 0.3）计算缩放系数 `s = clamp(躯干 CSS px ÷ 80, 0.35, 1)`，然后：
+
+- 关节半径 `4s`、骨线宽 `3s`、虚线间距 `max(2, 4s)`。
+- 深色描边不随人物一起缩小：骨线描边比骨线宽 `2·max(0.5, s)` px，圆点描边 `max(1, 1.5s)` px，保证在任何背景上都可辨。
+- 关键关节同样乘 `s`（r = `7s`）；角度弧线和数值标签不缩放，保证可读。
+- 实现：`apps/web/src/features/analyze/skeleton-draw.ts`（`skeletonScale`、`overlaySizes`）。
 
 关键关节：r = 7 实心 `--skel-key` + 2 px 白环 + 深色描边；角度弧线半径 22 px，数值标签在关节外侧，带半透明黑底（`rgba(0,0,0,0.6)`，白字 ≥ 4.5:1）。
 

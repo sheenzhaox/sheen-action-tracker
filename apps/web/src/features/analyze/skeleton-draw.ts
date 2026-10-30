@@ -30,6 +30,41 @@ interface Pt {
   low: boolean;
 }
 
+/** Torso length (shoulder→hip, CSS px) at which the overlay reaches its full MASTER §3.3 size. */
+export const FULL_SIZE_TORSO_PX = 80;
+export const MIN_SKELETON_SCALE = 0.35;
+
+/** Overlay size factor from the on-screen torso length, so joints never swamp a small figure. */
+export function skeletonScale(torsoCssPx: number | null): number {
+  if (torsoCssPx === null || !Number.isFinite(torsoCssPx) || torsoCssPx <= 0) return 1;
+  return Math.min(1, Math.max(MIN_SKELETON_SCALE, torsoCssPx / FULL_SIZE_TORSO_PX));
+}
+
+/** Stroke and radius sizes in device pixels for a given scale (MASTER §3.3 at s = 1). */
+export function overlaySizes(s: number, dpr: number) {
+  return {
+    radius: 4 * s * dpr,
+    halo: Math.max(1, 1.5 * s) * dpr,
+    bone: 3 * s * dpr,
+    boneHalo: (3 * s + 2 * Math.max(0.5, s)) * dpr,
+    ring: Math.max(1, 1.5 * s) * dpr,
+    dash: Math.max(2, 4 * s) * dpr,
+  };
+}
+
+/** Mean shoulder→hip length over the visible sides; falls back to the joints' bounding box. */
+function torsoLength(pts: Map<string, Pt>, dpr: number): number | null {
+  const sides = (["left", "right"] as const)
+    .map((side) => [pts.get(`${side}_shoulder`), pts.get(`${side}_hip`)] as const)
+    .filter((p): p is readonly [Pt, Pt] => !!p[0] && !!p[1])
+    .map(([a, b]) => Math.hypot(a.x - b.x, a.y - b.y));
+  if (sides.length) return sides.reduce((a, b) => a + b, 0) / sides.length / dpr;
+  if (pts.size < 3) return null;
+  const ys = [...pts.values()].map((p) => p.y);
+  // A standing adult's torso is roughly 30 % of the head-to-ankle extent.
+  return ((Math.max(...ys) - Math.min(...ys)) * 0.3) / dpr;
+}
+
 export function makeSkeletonDrawer(track: PtrkTrack) {
   const k = track.header.keypoints.length;
   const index = new Map(track.header.keypoints.map((name, j) => [name, j]));
@@ -60,19 +95,24 @@ export function makeSkeletonDrawer(track: PtrkTrack) {
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     const pts = new Map<number, Pt>();
-    for (const { j } of joints) {
+    const named = new Map<string, Pt>();
+    for (const { j, name } of joints) {
       const p = point(i, j, sx, sy);
-      if (p) pts.set(j, p);
+      if (p) {
+        pts.set(j, p);
+        named.set(name, p);
+      }
     }
+    const size = overlaySizes(skeletonScale(torsoLength(named, dpr)), dpr);
 
     for (const pass of ["halo", "bone"] as const) {
       for (const [a, b] of bones) {
         const pa = pts.get(a);
         const pb = pts.get(b);
         if (!pa || !pb) continue;
-        ctx.setLineDash(pa.low || pb.low ? [4 * dpr, 4 * dpr] : []);
+        ctx.setLineDash(pa.low || pb.low ? [size.dash, size.dash] : []);
         ctx.strokeStyle = pass === "halo" ? colors.halo : colors.bone;
-        ctx.lineWidth = (pass === "halo" ? 5 : 3) * dpr;
+        ctx.lineWidth = pass === "halo" ? size.boneHalo : size.bone;
         ctx.beginPath();
         ctx.moveTo(pa.x, pa.y);
         ctx.lineTo(pb.x, pb.y);
@@ -85,15 +125,15 @@ export function makeSkeletonDrawer(track: PtrkTrack) {
       const p = pts.get(j);
       if (!p) continue;
       const color = name.startsWith("left_") ? colors.left : name.startsWith("right_") ? colors.right : colors.center;
-      const r = 4 * dpr;
+      const r = size.radius;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r + 1.5 * dpr, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, r + size.halo, 0, Math.PI * 2);
       ctx.fillStyle = colors.halo;
       ctx.fill();
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.low ? r - 0.75 * dpr : r, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, p.low ? Math.max(r - size.ring / 2, size.ring) : r, 0, Math.PI * 2);
       if (p.low) {
-        ctx.lineWidth = 1.5 * dpr;
+        ctx.lineWidth = size.ring;
         ctx.strokeStyle = color;
         ctx.stroke();
       } else {

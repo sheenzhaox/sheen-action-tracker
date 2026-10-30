@@ -1,20 +1,25 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { FilmStrip, Warning } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
+import { Segmented } from "@/components/ui/segmented";
 import { t, type MessageKey } from "@/messages";
+import { INFERENCE_LONG_EDGES } from "@/pipeline/assets";
+import type { PipelineOptions } from "@/pipeline/protocol";
 import { RunReport } from "./RunReport";
 import { SkeletonPlayer } from "./SkeletonPlayer";
-import { usePipeline } from "./usePipeline";
+import { DEFAULT_OPTIONS, usePipeline } from "./usePipeline";
 
 export function AnalyzePanel() {
   const { state, start, cancel, reset } = usePipeline();
   const input = useRef<HTMLInputElement>(null);
+  const [options, setOptions] = useState<PipelineOptions>(DEFAULT_OPTIONS);
+  const running = state.status === "running";
 
   const pick = () => input.current?.click();
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (file) start(file);
+    if (file) start(file, options);
   };
 
   return (
@@ -24,7 +29,34 @@ export function AnalyzePanel() {
           {t("analyze.title")}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">{t("analyze.description")}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{t("analyze.model")}</p>
+
+        <fieldset className="mt-4 flex flex-col gap-3" disabled={running}>
+          <legend className="text-sm font-semibold">{t("settings.title")}</legend>
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-muted-foreground">{t("settings.model")}</span>
+            <Segmented
+              label={t("settings.model")}
+              options={[
+                { value: "full", label: t("settings.model.full") },
+                { value: "lite", label: t("settings.model.lite") },
+              ]}
+              value={options.model}
+              onChange={(model) => setOptions((o) => ({ ...o, model }))}
+              disabled={running}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-muted-foreground">{t("settings.size")}</span>
+            <Segmented
+              label={t("settings.size")}
+              options={INFERENCE_LONG_EDGES.map((v) => ({ value: v, label: `${v} px` }))}
+              value={options.inferenceLongEdge as (typeof INFERENCE_LONG_EDGES)[number]}
+              onChange={(inferenceLongEdge) => setOptions((o) => ({ ...o, inferenceLongEdge }))}
+              disabled={running}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">{t("settings.hint")}</p>
+        </fieldset>
         <input
           ref={input}
           type="file"
@@ -75,7 +107,7 @@ export function AnalyzePanel() {
       {state.status === "done" && (
         <>
           <SkeletonPlayer file={state.file} track={state.track} />
-          <RunReport summary={state.summary} />
+          <RunReport summary={state.summary} comparison={state.comparison} />
         </>
       )}
     </div>

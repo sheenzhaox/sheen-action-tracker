@@ -256,7 +256,10 @@ async function run(file: File, options: PipelineOptions) {
 
     const summary: RunSummary = {
       analysisId,
+      options,
+      videoSha256: track.header.video.sha256,
       probe: video.probe,
+      inferenceSize: { width: canvas?.width ?? 0, height: canvas?.height ?? 0 },
       providerId: provider.id,
       delegate: provider.delegate,
       ...(created.gpuError && { gpuError: created.gpuError }),

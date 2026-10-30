@@ -5,7 +5,7 @@
 ## 当前状态
 
 - **阶段**：**P1 本地原型进行中**（2026-10-30 起）。P0 设计 v0.3 + UI/UX v0.2 已定稿；Q1–Q13 全部回应；UI 方案 **C** + shadcn/ui + Tailwind（ADR-014）。
-- **P1 进度**：脚手架 ✅ → iPhone 诊断 ✅ → **sample1 端到端 ✅（桌面验证；待 iPhone 实测原始 HEVC 文件）** → 下一步见"恢复项目"第 6 步。
+- **P1 进度**：脚手架 ✅ → iPhone 诊断 ✅ → **sample1 端到端 ✅** → iPhone 实测 4K H.264 ✅（1.64×）→ 性能测试设置 ✅ → **待：iPhone 上各设置对比 + 原始 sample1.MOV（HEVC HDR）**。
 - **云资源**：1 个 Worker `action-tracker`，地址 https://action-tracker.sheenzhaox.workers.dev（2026-10-30 部署，用户授权；无 D1 / R2 / Access）。代码在公开 GitHub 仓库 [sheenzhaox/sheen-action-tracker](https://github.com/sheenzhaox/sheen-action-tracker)（`main`）
 - **UI 原型**：界面只做英文；shadcn 风格**已选 [C · Mobile focus](designs/mockups/mock-ui-shadcn-c.html)**（A [Workbench](designs/mockups/mock-ui-shadcn.html) / B [Library + Session](designs/mockups/mock-ui-shadcn-b.html) 仅作参考）（见 [08 第 11.2 节](designs/08-ui-ux.md)）；**骨架画在真实身体上**（C 的单腿蹲已用 sample1 真实视频 + 离线 MediaPipe 结果），A/B 与网球模式仍为合成示意。
 - **设计文档**：[designs/README.md](designs/README.md)
@@ -53,6 +53,25 @@
 | Q15 | 开发环境：是否在系统上启用 `pnpm`（`corepack enable pnpm`）？~~何时做第一次 git 提交？~~ | 日常命令 | 暂用 `corepack pnpm ...`；git 部分 ✅ 2026-10-30 已提交并推送到公开仓库 |
 
 ## 日志
+
+### 2026-10-30 · 性能测试设置 + 骨架圆点按人物大小缩放
+
+用户选择：加性能测试设置；并反馈"人物在视频中较小时，关节圆点相对骨骼太大，骨骼看不清"。
+
+- **性能测试设置**（Analyze 卡片中的 "Benchmark settings"）：模型 Full（9 MB）/ Lite（5.5 MB，`…/pose_landmarker_lite/float16/1/`，SHA-256 `59929e1d…`，同样自托管并固定），推理尺寸（长边）1280 / 960 / 720 px。默认 Full · 1280。
+  - 每次运行完成后，自动在 OPFS 中查找**同一视频（按视频 SHA-256）最近一次 Full · 1280 的结果**作为参照，计算 13 个身体关键点的图像空间差异：平均 px、占画面高度 %、P95、比较的帧数。按时间戳匹配帧（容差半帧），只比较两边都是 observed 的点。结果显示在 Run report 的 "Difference vs Full · 1280 px"，复制报告时一并带上。
+  - Run report 新增 "Setting" 行：模型 · 长边 → 实际送入模型的尺寸。
+  - 实现：`src/features/analyze/compare.ts`（`compareTracks` 纯函数 + `loadReferenceTrack`），4 个单测。
+- **骨架尺寸缩放**（MASTER 3.3 已更新）：每帧按屏幕上的躯干长度计算 `s = clamp(躯干 CSS px ÷ 80, 0.35, 1)`，关节半径 `4s`、骨线 `3s`、虚线间距 `max(2, 4s)`；深色描边保留最小宽度。`s = 1` 时与原尺寸完全相同。3 个单测。
+- 新增共用组件 `components/ui/segmented.tsx`（分段控件，44 px），播放速度也改用它。
+
+**桌面验证**（sample1 的 360 × 640 副本）：
+- Lite · 720 与 Full · 1280 相比：平均 3.6 px（0.56%），P95 9.7 px，232 帧。
+- Full · 960 与 Full · 1280 相比：0.0 px。360 × 640 的视频不会被放大，两次送入模型的图像相同，同时说明 GPU 推理结果是确定的。4K 原片在 960 / 720 下才会有真实差异，需要在 iPhone 上看。
+- 画面较小时（躯干约 45 px，s ≈ 0.56）圆点明显变小，骨线清楚。
+- 测试 43 个全部通过；已重新部署（Version `5f627db7`），线上 lite 模型可下载，immutable 缓存生效。
+
+**待用户在 iPhone 上做**：用同一段视频依次跑 Full · 1280（参照）→ Full · 960 → Full · 720 → Lite · 1280 → Lite · 720，每次复制 Run report 贴回。重点看每帧推理耗时和与参照的差异，据此定默认设置（目标：60 fps 网球 30 s 片段 ≤ 3×）。
 
 ### 2026-10-30 · iPhone 首次端到端实测（34 s 4K H.264）
 

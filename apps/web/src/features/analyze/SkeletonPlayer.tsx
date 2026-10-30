@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CaretLeft, CaretRight, Pause, Play } from "@phosphor-icons/react";
 import type { PtrkTrack } from "@action-tracker/pose-core/io";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/ui/segmented";
 import { t } from "@/messages";
 import { frameAt, makeSkeletonDrawer, readSkeletonColors } from "./skeleton-draw";
 
@@ -171,22 +171,13 @@ export function SkeletonPlayer({ file, track }: { file: File; track: PtrkTrack }
         {t("player.frame")} {frame + 1} / {n} · {((ts[frame] ?? 0) / 1000).toFixed(2)} s
       </p>
 
-      <div role="radiogroup" aria-label={t("player.speed")} className="mt-3 inline-flex rounded-full bg-muted p-1">
-        {SPEEDS.map((s) => (
-          <button
-            key={s}
-            type="button"
-            role="radio"
-            aria-checked={speed === s}
-            onClick={() => setSpeed(s)}
-            className={cn(
-              "min-h-11 min-w-14 rounded-full px-3 text-sm font-semibold tabular-nums transition-colors",
-              speed === s ? "bg-primary text-primary-foreground" : "text-foreground",
-            )}
-          >
-            {s}×
-          </button>
-        ))}
+      <div className="mt-3">
+        <Segmented
+          label={t("player.speed")}
+          options={SPEEDS.map((s) => ({ value: s, label: `${s}×` }))}
+          value={speed}
+          onChange={setSpeed}
+        />
       </div>
 
       <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">

@@ -1,6 +1,6 @@
 import type { PtrkTrack } from "@action-tracker/pose-core/io";
 
-export type ModelVariant = "full";
+export type ModelVariant = "full" | "lite";
 
 export interface PipelineOptions {
   model: ModelVariant;
@@ -44,7 +44,11 @@ export interface Timings {
 
 export interface RunSummary {
   analysisId: string;
+  options: PipelineOptions;
+  videoSha256: string;
   probe: ProbeInfo;
+  /** Upright image size actually fed to the model. */
+  inferenceSize: { width: number; height: number };
   providerId: string;
   delegate: "GPU" | "CPU";
   gpuError?: string;

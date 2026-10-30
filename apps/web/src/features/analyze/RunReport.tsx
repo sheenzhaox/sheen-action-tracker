@@ -3,14 +3,34 @@ import { Copy } from "@phosphor-icons/react";
 import type { RunSummary } from "@/pipeline/protocol";
 import { Button } from "@/components/ui/button";
 import { t, type MessageKey } from "@/messages";
+import type { Comparison } from "./usePipeline";
 
 const ms = (v: number) => `${Math.round(v)} ms`;
 
-export function reportRows(s: RunSummary): Array<[MessageKey, string]> {
+function comparisonText(c: Comparison): string {
+  switch (c.status) {
+    case "pending":
+      return t("report.compare.pending");
+    case "self":
+      return t("report.compare.self");
+    case "none":
+      return t("report.compare.none");
+    case "done":
+      if (!c.diff) return t("report.compare.empty");
+      return `mean ${c.diff.meanPx.toFixed(1)} px (${c.diff.meanPct.toFixed(2)}%) · P95 ${c.diff.p95Px.toFixed(1)} px · ${c.diff.framesCompared} frames`;
+  }
+}
+
+export function reportRows(s: RunSummary, comparison: Comparison): Array<[MessageKey, string]> {
   const p = s.probe;
   const tm = s.timings;
   const ratio = p.durationMs > 0 ? tm.totalMs / p.durationMs : 0;
   return [
+    [
+      "report.setting",
+      `${s.options.model} · ${s.options.inferenceLongEdge} px → ${s.inferenceSize.width}×${s.inferenceSize.height}`,
+    ],
+    ["report.compare", comparisonText(comparison)],
     [
       "report.video",
       `${p.codec} · ${p.displayWidth}×${p.displayHeight} · rot ${p.rotation}° · ${p.fps.toFixed(2)} fps · ${p.frameCount} frames · ${(p.durationMs / 1000).toFixed(2)} s · HDR ${p.hdr}`,
@@ -38,9 +58,9 @@ export function reportRows(s: RunSummary): Array<[MessageKey, string]> {
   ];
 }
 
-export function RunReport({ summary }: { summary: RunSummary }) {
+export function RunReport({ summary, comparison }: { summary: RunSummary; comparison: Comparison }) {
   const [copied, setCopied] = useState(false);
-  const rows = reportRows(summary);
+  const rows = reportRows(summary, comparison);
   const copy = async () => {
     const text = [
       `run ${summary.analysisId}`,

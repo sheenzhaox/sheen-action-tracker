@@ -1,14 +1,36 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PtrkTrack } from "@action-tracker/pose-core/io";
 import type { ErrorCode, FromWorker, PipelineOptions, ProbeInfo, RunSummary, Stage, ToWorker } from "@/pipeline/protocol";
+import { REFERENCE_SETTING } from "@/pipeline/assets";
+import { compareTracks, loadReferenceTrack, type TrackDiff } from "./compare";
+
+export type Comparison =
+  | { status: "pending" }
+  | { status: "self" }
+  | { status: "none" }
+  | { status: "done"; diff: TrackDiff | null };
 
 export type PipelineState =
   | { status: "idle" }
   | { status: "running"; stage: Stage; probe?: ProbeInfo; done: number; total: number }
-  | { status: "done"; summary: RunSummary; track: PtrkTrack; file: File }
+  | { status: "done"; summary: RunSummary; track: PtrkTrack; file: File; comparison: Comparison }
   | { status: "error"; code: ErrorCode; detail: string };
 
-const DEFAULT_OPTIONS: PipelineOptions = { model: "full", delegate: "GPU", inferenceLongEdge: 1280 };
+export const DEFAULT_OPTIONS: PipelineOptions = {
+  model: REFERENCE_SETTING.model,
+  delegate: "GPU",
+  inferenceLongEdge: REFERENCE_SETTING.inferenceLongEdge,
+};
+
+const isReference = (o: PipelineOptions) =>
+  o.model === REFERENCE_SETTING.model && o.inferenceLongEdge === REFERENCE_SETTING.inferenceLongEdge;
+
+async function compareWithReference(summary: RunSummary, track: PtrkTrack): Promise<Comparison> {
+  if (isReference(summary.options)) return { status: "self" };
+  const ref = await loadReferenceTrack(summary.videoSha256, summary.analysisId);
+  if (!ref) return { status: "none" };
+  return { status: "done", diff: compareTracks(track, ref) };
+}
 
 type WakeLockSentinelLike = { release(): Promise<void> };
 
@@ -29,7 +51,7 @@ export function usePipeline() {
   useEffect(() => stop, [stop]);
 
   const start = useCallback(
-    (file: File) => {
+    (file: File, options: PipelineOptions = DEFAULT_OPTIONS) => {
       stop();
       setState({ status: "running", stage: "loadModel", done: 0, total: 0 });
       const wl = (navigator as Navigator & { wakeLock?: { request(t: "screen"): Promise<WakeLockSentinelLike> } })
@@ -54,7 +76,7 @@ export function usePipeline() {
 
       pipe.onmessage = (e: MessageEvent<FromWorker>) => {
         const msg = e.data;
-        setState((s) => {
+        setState((s): PipelineState => {
           switch (msg.type) {
             case "stage":
               return s.status === "running" ? { ...s, stage: msg.stage } : s;
@@ -63,18 +85,23 @@ export function usePipeline() {
             case "progress":
               return s.status === "running" ? { ...s, done: msg.done, total: msg.total } : s;
             case "done":
-              return { status: "done", summary: msg.summary, track: msg.track, file };
+              return { status: "done", summary: msg.summary, track: msg.track, file, comparison: { status: "pending" } };
             case "error":
               return { status: "error", code: msg.code, detail: msg.detail };
           }
         });
+        if (msg.type === "done") {
+          void compareWithReference(msg.summary, msg.track).then((comparison) =>
+            setState((s) => (s.status === "done" && s.summary.analysisId === msg.summary.analysisId ? { ...s, comparison } : s)),
+          );
+        }
         if (msg.type === "done" || msg.type === "error") stop();
       };
       pipe.onerror = (e) => {
         setState({ status: "error", code: "unknown", detail: e.message || "worker failed to start" });
         stop();
       };
-      send({ type: "start", file, options: DEFAULT_OPTIONS });
+      send({ type: "start", file, options });
     },
     [stop],
   );
