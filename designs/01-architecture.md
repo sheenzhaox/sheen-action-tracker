@@ -205,7 +205,7 @@ sport-action-tracker/
 └─ tools/                    # 批量提取姿态、对比基准（如 Sports2D / RTMPose）的脚本
 ```
 
-2026-10-30 P1 脚手架已创建：`apps/web`、`pose-core`、`analysis-core`、`analysis-tennis`、`shared`、`fixtures/`。`pose-mediapipe` 在接入推理时创建；`analysis-gym` 推迟到 P2（Tennis 优先，Q2）；`tools/` 暂未创建（离线提取脚本目前在 `designs/mockups/tools/`）。
+2026-10-30 P1 脚手架已创建：`apps/web`、`pose-core`、`analysis-core`、`analysis-tennis`、`shared`、`fixtures/`；同日 sample1 端到端时创建了 `pose-mediapipe`。`analysis-gym` 推迟到 P2（Tennis 优先，Q2）；`tools/` 暂未创建（离线提取脚本目前在 `designs/mockups/tools/`）。
 
 ## 10. 技术选型
 

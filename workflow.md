@@ -5,7 +5,7 @@
 ## 当前状态
 
 - **阶段**：**P1 本地原型进行中**（2026-10-30 起）。P0 设计 v0.3 + UI/UX v0.2 已定稿；Q1–Q13 全部回应；UI 方案 **C** + shadcn/ui + Tailwind（ADR-014）。
-- **P1 进度**：脚手架 ✅（pnpm monorepo、Worker `/api/health`、诊断面板，typecheck / test / build 通过）→ 下一步 iPhone 诊断与 sample1 端到端（见"恢复项目"第 5 步）。
+- **P1 进度**：脚手架 ✅ → iPhone 诊断 ✅ → **sample1 端到端 ✅（桌面验证；待 iPhone 实测原始 HEVC 文件）** → 下一步见"恢复项目"第 6 步。
 - **云资源**：1 个 Worker `action-tracker`，地址 https://action-tracker.sheenzhaox.workers.dev（2026-10-30 部署，用户授权；无 D1 / R2 / Access）。代码在公开 GitHub 仓库 [sheenzhaox/sheen-action-tracker](https://github.com/sheenzhaox/sheen-action-tracker)（`main`）
 - **UI 原型**：界面只做英文；shadcn 风格**已选 [C · Mobile focus](designs/mockups/mock-ui-shadcn-c.html)**（A [Workbench](designs/mockups/mock-ui-shadcn.html) / B [Library + Session](designs/mockups/mock-ui-shadcn-b.html) 仅作参考）（见 [08 第 11.2 节](designs/08-ui-ux.md)）；**骨架画在真实身体上**（C 的单腿蹲已用 sample1 真实视频 + 离线 MediaPipe 结果），A/B 与网球模式仍为合成示意。
 - **设计文档**：[designs/README.md](designs/README.md)
@@ -28,7 +28,7 @@
 5. **运行应用**（仓库根目录）：`corepack pnpm install` → `corepack pnpm dev`（http://localhost:5173）；检查 `corepack pnpm typecheck`、`corepack pnpm test`、`corepack pnpm build`。细节和本机注意事项（PATH 中无 pnpm、TLS 拦截）见 [AGENTS.md](AGENTS.md)"仓库结构与工具"。
 6. **当前下一步（按顺序）**：
    1. ~~iPhone 上跑诊断面板~~ ✅ 2026-10-30：全部关键能力可用（见日志"iPhone 诊断结果"）；之后在 Safari 上补测一次。
-   2. **sample1 端到端**：mp4box.js 解封装 + WebCodecs 解码（Web Worker）→ `pose-mediapipe`（tasks-vision 1.2.0，模型自托管）→ 后处理 → canvas 叠加（MASTER 3.3）→ PTRK + manifest 写入 OPFS；在 iPhone 上记录各阶段耗时。
+   2. **sample1 端到端** ✅ 2026-10-30 已实现并部署（见日志）。**待办：用户在 iPhone 上用原始 sample1.MOV（HEVC Main10 HDR 4K）跑一次，贴回 Run report。** 重点看 HEVC 解码是否成功、HDR 画面颜色、推理每帧耗时、总耗时与视频时长之比。
    3. 正面单腿蹲测量（髋下降、膝 FPPA）作为管线验收，fixtures 用 sample1 的 PTRK + 人工标注。
    4. 网球素材到位后（3–5 段，要求见 [03 第 5.5 节](designs/03-analysis-packs.md)）实现 `tennis.groundstroke` 检测并把 C 的网球模式换成真实叠加。
 
@@ -53,6 +53,37 @@
 | Q15 | 开发环境：是否在系统上启用 `pnpm`（`corepack enable pnpm`）？~~何时做第一次 git 提交？~~ | 日常命令 | 暂用 `corepack pnpm ...`；git 部分 ✅ 2026-10-30 已提交并推送到公开仓库 |
 
 ## 日志
+
+### 2026-10-30 · sample1 端到端（P1 首个里程碑）
+
+用户确认开始，默认模型 full，完成后部署。
+
+**实现**（设计见 02；实现细节和坑见 [02 第 13 节](designs/02-pose-pipeline.md)）：
+- `pose-core`：PTRK v1 编解码（gzip、读取校验：大小 / 帧数 / K / 时间戳严格递增 / kpState 取值 / 流式解压上限）、量化函数、`canonicalJson` + `recipeHash`、`PoseProvider` 接口与身体骨线。平台相关代码放在 `@action-tracker/pose-core/io` 入口。
+- 新包 `pose-mediapipe`：封装 PoseLandmarker（VIDEO 模式、module 版 WASM、自建 OffscreenCanvas、GPU 失败时回退 CPU）。
+- `apps/web` 管线 Worker：mp4box 流式解封装（按 mp4box 请求的位置读取，moov 在文件尾也能处理）→ WebCodecs 解码（解码队列与帧队列背压，10 s 卡住报错）→ 按 tkhd 矩阵旋转 + 长边缩到 1280 → 推理（时间戳严格递增）→ raw PTRK → OPFS（`analyses/<id>/raw.ptrk.gz`，最后写 `manifest.json` 作完成标记）。另有一个哈希 Worker 用 hash-wasm 流式计算视频 SHA-256。
+- UI：选择视频 → 分阶段进度（可取消，分析期间申请 Wake Lock）→ 骨架叠加回放（rVFC 同步、±1 帧按钮、拖动条、0.25 / 0.5 / 1× 速度、图例）→ Run report（各阶段耗时、P50 / P95、复制报告）。诊断面板折叠在下方。
+- 测试：pose-core 14 个（PTRK 往返、对齐、量化、截断 / 伪造帧数 / 非递增 / 非法 kpState / 解压上限、recipe 哈希）；web 13 个（iPhone 90° 矩阵、旋转变换角点、慢动作和 edit list 判定、HDR、时间戳单调、百分位、帧定位、Worker API）。共 36 个通过。
+
+**验证**（桌面 Chromium，sample1 的 360 × 640 H.264 副本；iPhone 原文件待测）：
+- 本地 dev、生产 preview、线上 workers.dev 三处都跑通：232/232 帧检出，GPU delegate。
+- 准确性：从 OPFS 取出 PTRK，用 pose-core 解码，与离线 Python heavy 结果比较。13 个身体关键点平均相差 **2.8 px（0.44%）**，P95 6.4 px，最大 64.6 px（偶发，可能是被遮挡的抬起脚）。时间戳差 ≤ 0.5 ms，视频 SHA-256 与本地文件一致。
+- 桌面性能（页面可见时）：推理每帧 P50 8 ms / P95 12 ms，总耗时 3.8 s，为视频时长的 0.49×。线上首次运行要下载模型（约 1.1 s），总耗时为 0.72×。页面不可见时浏览器会降频，每帧 P50 约 33 ms。
+- 线上 `/vendor/*`：`application/wasm`，`Cache-Control: public, max-age=31536000, immutable`；PTRK 99 KB / 7.7 s。
+- 390 px 宽无横向滚动，深浅主题都正常。
+
+**发现与修正**：
+- tasks-vision 按 UA 判断 OffscreenCanvas，iPhone 上的 Chrome 会被误判，在 Worker 中访问 `document` 崩溃 → 改为总是自己传入 OffscreenCanvas。
+- Vite dev 会改写相对路径的动态 import（加 `?import`），导致无法加载 `public/` 下的 WASM 加载器 → 改用绝对 URL。
+- 模型 `…/float16/latest/` 与 `…/float16/1/` 字节不同（两者都是 2023-04-28 上传），固定使用 `/1/` 并锁定 SHA-256。
+- React StrictMode 下，`useMemo` 生成的 blob URL 会被 effect 清理提前回收 → 改为在同一个 effect 里创建和回收。
+- 连续点"下一帧"时，上一次定位的回调会把帧号拉回 → 改用"待定位目标帧"计数。
+- 运行报告中很长的 colorSpace JSON 撑出横向滚动 → 网格列改为 `minmax(0,1fr)`，允许任意位置断行。
+- MediaPipe 控制台警告 "NORM_RECT without IMAGE_DIMENSIONS"：与离线结果对比没有可见偏差，暂时忽略。
+
+**部署**：用户已授权。`wrangler deploy` 上传 Worker 与 14 个静态文件（含 13.8 MB WASM、9 MB 模型，均小于 25 MiB 上限），Version `72d3e5e4`。
+
+**下一步**：用户在 iPhone 上用原始 sample1.MOV 跑一次，复制 Run report 贴回来。据此确认 HEVC HDR 解码和色调映射、iPhone 推理耗时，以及是否需要把 `inferenceLongEdge` 调低或换 lite 模型。之后做后处理（门控、插补、滤波 → processed PTRK）和正面单腿蹲测量（髋下降、FPPA）。
 
 ### 2026-10-30 · iPhone 诊断结果（首次真机）
 

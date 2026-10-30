@@ -1,0 +1,17 @@
+{
+  "name": "@action-tracker/pose-mediapipe",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@action-tracker/pose-core": "workspace:*",
+    "@mediapipe/tasks-vision": "1.2.0"
+  }
+}

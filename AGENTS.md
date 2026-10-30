@@ -6,7 +6,7 @@ AI 编码代理（Copilot、Claude、Codex 等）在本仓库工作时必须遵�
 
 **Action Tracker**：网页版运动动作分析工具。浏览器把运动视频转换成人体骨架（MediaPipe Pose Landmarker），再由可插拔的运动分析包（网球、健身）输出次数、阶段、关节角度、节奏，以及每个指标的状态。**v1 只做测量，不做动作纠错**（ADR-012）。Cloudflare（Workers Free）只负责托管、鉴权和轻量数据同步。
 
-- **当前阶段：P1 原型**（2026-10-30 起）。本地脚手架通过 typecheck / test / build；已部署 1 个 Worker 到 workers.dev（仅静态页 + `/api/health`，无 D1 / R2 / Access）。
+- **当前阶段：P1 原型**（2026-10-30 起）。sample1 端到端（解码 → MediaPipe → raw PTRK → OPFS → 骨架回放）已实现并部署到 workers.dev（仅静态页 + `/api/health`，无 D1 / R2 / Access）。
 - 设计文档入口：[designs/README.md](designs/README.md)
 - 项目思考与进展日志：[workflow.md](workflow.md)
 
@@ -82,7 +82,9 @@ AI 编码代理（Copilot、Claude、Codex 等）在本仓库工作时必须遵�
   - `src/index.css`：MASTER token（`:root` 浅色、`.dark` 深色）与 `@theme inline` 映射；改颜色先改 MASTER。
   - `worker/index.ts`：`/api/health` 公开，其余 `/api/*` 在实现 Access JWT 校验前一律 401（fail closed）。
   - `worker/worker-configuration.d.ts` 由 `pnpm --filter @action-tracker/web cf-typegen` 生成；改 `wrangler.jsonc` 后要重新生成。
-- 已有包：`packages/pose-core`、`analysis-core`、`analysis-tennis`、`shared`。`pose-mediapipe` 在接入推理时创建；`analysis-gym` 推迟到 P2。
+- 已有包：`packages/pose-core`（主入口平台无关；PTRK 编解码与 recipe 哈希在 `@action-tracker/pose-core/io`）、`pose-mediapipe`、`analysis-core`、`analysis-tennis`、`shared`。`analysis-gym` 推迟到 P2。
+- 管线代码在 `apps/web/src/pipeline/`（`pipeline.worker.ts`、`demux.ts`、`frame-math.ts`、`opfs.ts`、`hash.worker.ts`）；UI 在 `src/features/analyze/`。实现细节与坑见 [02 第 13 节](designs/02-pose-pipeline.md)。
+- MediaPipe WASM 与模型由 `apps/web/scripts/prepare-vendor.mjs` 生成到 `apps/web/public/vendor/`（`dev` / `build` 自动运行，不进 git）。模型从版本化 URL 下载并校验固定 SHA-256；**换模型或升级 tasks-vision 时同时更新该脚本、`src/pipeline/assets.ts` 中的哈希和路径中的版本号**（`/vendor/*` 是一年 immutable 缓存）。
 - 包直接导出 TS 源码（`exports: ./src/index.ts`），由 Vite / Vitest 直接消费，不单独构建。
 - 测试：Vitest 5；分析包使用 `fixtures/` 中的 PTRK + 标注做回归测试；Worker 测试用 `@cloudflare/vitest-plugin`（原 `vitest-pool-workers` 已改名），在 workerd 中运行，通过 `import { exports } from "cloudflare:workers"` 调用。
 

@@ -1,4 +1,5 @@
 import { ShieldCheck } from "@phosphor-icons/react";
+import { AnalyzePanel } from "@/features/analyze/AnalyzePanel";
 import { DiagnosticsPanel } from "@/features/diagnostics/DiagnosticsPanel";
 import { t } from "@/messages";
 
@@ -13,8 +14,16 @@ export function App() {
           {t("app.privacy")}
         </p>
       </header>
-      <main>
-        <DiagnosticsPanel />
+      <main className="flex flex-col gap-6">
+        <AnalyzePanel />
+        <details className="group rounded-xl">
+          <summary className="flex min-h-11 cursor-pointer items-center rounded-md px-1 font-medium text-primary-text">
+            {t("diag.title")}
+          </summary>
+          <div className="mt-2">
+            <DiagnosticsPanel />
+          </div>
+        </details>
       </main>
     </div>
   );

@@ -1,6 +1,6 @@
 # 02 · 视频与姿态管线
 
-> 状态：v0.3 草案 · 更新：2026-10-29（GPT 评审修订：时间模型、逐点质量、线程模型、manifest、恢复范围）
+> 状态：v0.3 草案 · 更新：2026-10-30（新增第 13 节 P1 实现备注：sample1 端到端）
 
 管线把一个视频文件（或摄像头流）转换为**已处理的标准姿态轨迹（Processed Pose Track）**，供分析引擎使用。全部在浏览器中执行。
 
@@ -334,3 +334,21 @@ raw 已经是"选定目标、可能降采样"后的数据，因此**不承诺**�
 - 分析结果**只在全部完成后**一次性提交：先写 OPFS 临时目录，最后写 IndexedDB 记录标记完成；OPFS 与 IndexedDB 之间没有原子事务，启动时以 IndexedDB 记录为准，清理没有对应记录的 OPFS 目录。
 - "恢复后结果等价"按容差判定：计数一致、关键时刻误差 ≤ 2 帧、指标误差在 P1 实测确定的容限内；不要求与不中断运行逐位一致。
 - 跨页面重载的分块续跑留到需要长视频时再设计。
+
+## 13. P1 实现备注（2026-10-30，sample1 端到端）
+
+已实现：导入 → mp4box 探测 → WebCodecs 解码（带背压）→ 旋转缩放 → MediaPipe full 推理 → raw PTRK + manifest 写入 OPFS → 骨架叠加回放 → 分阶段耗时报告。代码见 `apps/web/src/pipeline/`、`packages/pose-mediapipe`、`packages/pose-core/src/ptrk.ts`。
+
+实现中确定的细节（不改变上文设计）：
+
+- **WASM 用 module 版**：管线 Worker 是 module worker，`FilesetResolver.forVisionTasks(base, true)` 通过动态 `import()` 加载 `vision_wasm_module_internal.{js,wasm}`（13.8 MB，tasks-vision 1.2.0 没有 module + nosimd 组合，iOS 16.4+ 支持 SIMD）。
+- **必须自己传 OffscreenCanvas**：tasks-vision 按 UA 判断 OffscreenCanvas 是否可用，iPhone 上的 Chrome/Edge（UA 不含 `Version/x`）会被误判，在 Worker 里调用 `document` 崩溃。实现总是传入 `new OffscreenCanvas(1, 1)`。
+- **自托管资源**：`apps/web/scripts/prepare-vendor.mjs` 在 `dev` / `build` 前把 WASM 复制到 `public/vendor/tasks-vision-1.2.0/`，并从**版本化 URL** `…/pose_landmarker_full/float16/1/…` 下载模型、校验固定 SHA-256（`5134a3aa…`）。`…/latest/…` 的文件字节不同，不使用。`public/_headers` 给 `/vendor/*` 设一年 immutable 缓存（路径带版本号）。这些文件不进 git。
+- **开发服务器**：Vite dev 会给相对路径的动态 `import()` 加 `?import` 并拒绝 `public/` 文件，所以 `wasmBase` 用绝对 URL（`origin + /vendor/...`）；生产构建不受影响。
+- **raw PTRK 的 kpState**：模型返回的点在 raw 中一律为 `observed`，`visibility < 0.5` 的门控留在后处理（processed）阶段；回放时 `visibility < 0.5` 的点画空心点、骨线画虚线，只是显示规则。tasks-vision 1.2.0 会输出 presence，`hasPresence = true`。
+- **PTRK 读写放在 `@action-tracker/pose-core/io`** 入口（需要 `TextEncoder`、`CompressionStream`、`crypto.subtle`），主入口保持平台无关，分析包在类型层面就用不到这些 API。
+- **提交标记**：P1 还没有 IndexedDB，`manifest.json` 最后写入，作为完成标记；失败或取消时删除该分析目录。IndexedDB 记录在做历史列表时补上（第 12 节）。
+- **recipeHash** 不含 `analysisId`、`createdAt`，相同输入和配方得到相同哈希。
+- 暂未实现：多人跟踪（`numPoses = 1`，自动单人）、后处理与 processed PTRK、推理中途 GPU→CPU 回退（只在初始化时回退）、暂停/恢复、路径 B 回退解码。
+
+**准确性核对**（桌面 Chromium，sample1 的 360 × 640 H.264 副本）：浏览器 full 模型与离线 Python heavy 模型相比，232/232 帧都检出，13 个身体关键点平均相差 2.8 px（画面高度的 0.44%），P95 6.4 px；时间戳差 ≤ 0.5 ms；视频 SHA-256 与本地文件一致。说明旋转、缩放、坐标换算和时间戳都正确。

@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // DOM only for src/io.ts (PTRK codec, hashing); the main entry stays platform-free.
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": ["src"]
+}
