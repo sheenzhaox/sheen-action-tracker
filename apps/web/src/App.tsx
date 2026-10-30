@@ -3,7 +3,6 @@ import { GearSix, ListBullets, PlusCircle, ShieldCheck, type Icon } from "@phosp
 import { AnalyzePanel } from "@/features/analyze/AnalyzePanel";
 import { DiagnosticsPanel } from "@/features/diagnostics/DiagnosticsPanel";
 import { RecordsPanel } from "@/features/records/RecordsPanel";
-import { cn } from "@/lib/utils";
 import { t, type MessageKey } from "@/messages";
 
 type Tab = "records" | "import" | "settings";
@@ -25,16 +24,36 @@ export function App() {
   };
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-xl flex-col gap-6 px-4 pt-[max(env(safe-area-inset-top),16px)] pb-[calc(max(env(safe-area-inset-bottom),8px)+88px)]">
-      <header>
-        <h1 className="font-display text-2xl font-bold">{t("app.title")}</h1>
-        <p className="mt-1 inline-flex items-center gap-2 text-sm text-muted-foreground">
+    <div className="app-shell">
+      <header className="app-topbar">
+        <div className="app-brand">
+          <span className="app-brand-mark" aria-hidden="true">A</span>
+          <span>{t("app.title")}</span>
+        </div>
+        <p className="app-privacy">
           <ShieldCheck size={20} aria-hidden="true" />
           {t("app.privacy")}
         </p>
       </header>
 
-      <main>
+      <nav aria-label={t("nav.label")} className="app-nav">
+        <ul>
+          {TABS.map(({ id, labelKey, icon: TabIcon }) => (
+            <li key={id}>
+              <button
+                type="button"
+                aria-current={tab === id ? "page" : undefined}
+                onClick={() => go(id)}
+              >
+                <TabIcon size={20} weight={tab === id ? "fill" : "regular"} aria-hidden="true" />
+                {t(labelKey)}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      <main className="app-main">
         <div hidden={tab !== "records"}>
           <RecordsPanel active={tab === "records"} onImport={() => go("import")} />
         </div>
@@ -47,30 +66,6 @@ export function App() {
           </div>
         )}
       </main>
-
-      <nav
-        aria-label={t("nav.label")}
-        className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-card/95 pb-[max(env(safe-area-inset-bottom),8px)] backdrop-blur"
-      >
-        <ul className="mx-auto flex max-w-xl">
-          {TABS.map(({ id, labelKey, icon: TabIcon }) => (
-            <li key={id} className="flex-1">
-              <button
-                type="button"
-                aria-current={tab === id ? "page" : undefined}
-                onClick={() => go(id)}
-                className={cn(
-                  "flex min-h-14 w-full flex-col items-center justify-center gap-0.5 text-xs font-medium transition-colors",
-                  tab === id ? "text-primary-text" : "text-muted-foreground",
-                )}
-              >
-                <TabIcon size={24} weight={tab === id ? "fill" : "regular"} aria-hidden="true" />
-                {t(labelKey)}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </nav>
     </div>
   );
 }

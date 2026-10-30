@@ -6,8 +6,8 @@
 
 - **阶段**：**P1 本地原型进行中**（2026-10-30 起）。P0 设计 v0.3 + UI/UX v0.2 已定稿；Q1–Q13 全部回应；UI 方案 **C** + shadcn/ui + Tailwind（ADR-014）。
 - **P1 进度**：脚手架 ✅ → iPhone 诊断 ✅ → **sample1 端到端 ✅** → iPhone 实测 4K H.264 ✅（1.64×）→ **iPhone 原始 sample1.MOV（HEVC HDR、竖屏）✅** → 性能测试设置 ✅ → **本地历史 Records ✅** → 待：iPhone 上各设置对比；后处理；单腿蹲测量。
-- **云资源**：1 个 Worker `action-tracker`，地址 https://action-tracker.sheenzhaox.workers.dev（2026-10-30 部署，用户授权；无 D1 / R2 / Access）。代码在公开 GitHub 仓库 [sheenzhaox/sheen-action-tracker](https://github.com/sheenzhaox/sheen-action-tracker)（`main`）
-- **UI 原型**：界面只做英文；shadcn 风格**已选 [C · Mobile focus](designs/mockups/mock-ui-shadcn-c.html)**（A [Workbench](designs/mockups/mock-ui-shadcn.html) / B [Library + Session](designs/mockups/mock-ui-shadcn-b.html) 仅作参考）（见 [08 第 11.2 节](designs/08-ui-ux.md)）；**骨架画在真实身体上**（C 的单腿蹲已用 sample1 真实视频 + 离线 MediaPipe 结果），A/B 与网球模式仍为合成示意。
+- **云资源**：1 个 Worker `action-tracker`，地址 https://action-tracker.sheenzhaox.workers.dev（2026-10-30 部署，用户授权；当前 Version `3d123c78-9489-457d-b04d-dbc6d8865ddf`；无 D1 / R2 / Access）。代码在公开 GitHub 仓库 [sheenzhaox/sheen-action-tracker](https://github.com/sheenzhaox/sheen-action-tracker)（`main`）
+- **UI 原型**：界面只做英文；组件与框架仍为 shadcn/ui + Tailwind（ADR-014），应用 Records / Import 已实现 [SpaceX-inspired 黑白排版方向](designs/08-ui-ux.md)（ADR-016）；手机仍使用三项底部导航，主题仍跟随系统；回放 C 原型继续作为骨架叠加参考。
 - **设计文档**：[designs/README.md](designs/README.md)
 
 ## 恢复项目（下次从这里开始）
@@ -53,6 +53,21 @@
 | Q15 | 开发环境：是否在系统上启用 `pnpm`（`corepack enable pnpm`）？~~何时做第一次 git 提交？~~ | 日常命令 | 暂用 `corepack pnpm ...`；git 部分 ✅ 2026-10-30 已提交并推送到公开仓库 |
 
 ## 日志
+
+### 2026-10-30 · SpaceX-inspired UI 生产部署
+
+- UI 实现提交 `846c4b0` 已推送到 `feature/ui-improvement-spacex`。
+- 生产构建与 Wrangler dry-run 通过；dry-run 检查到 15 个静态资源、无 Worker bindings。部署至现有 `action-tracker` Worker，Version `3d123c78-9489-457d-b04d-dbc6d8865ddf`。
+- 线上 smoke check：SPA 显示 Records 页面，Import 可切换；375 px 手机视口无横向溢出；`/api/health` 返回 `{"ok":true,"service":"action-tracker","apiVersion":1}`。未创建或修改 D1 / R2 等云资源。
+
+### 2026-10-30 · SpaceX-inspired UI 实现
+
+- 用户审阅独立预览后批准实现。App shell 改为桌面横向导航、手机安全区底部导航；深色 token 使用纯黑背景、近黑表面、灰色 hairline 和系统窄体 display，保留橙色深色文字主操作、浅色主题和现有组件栈。
+- Records feature 读取真实首条分析的帧数、文件名、日期、视频元数据、推理设置与存储状态；其他记录为分隔线列表。不自动展示原视频缩略图，避免把示例视频或未验证媒体伪装成用户数据。
+- Import 使用宽屏双栏、手机单栏；原有文件选择、模型/推理尺寸、处理中进度与取消流程保留。所有新增界面文案通过 `messageKey`。
+- 文档同步：MASTER v0.3、08 第 5 / 11.3 节、ADR-016、设计文档入口。
+- 验证：`apps/web` 生产构建通过；TypeScript typecheck 通过；web 25、analysis-core 5、analysis-tennis 4、pose-core 14 个测试通过（共 48）；pose-mediapipe / shared 无测试文件。浏览器检查 desktop 1419 px 与 mobile 375 px，Records 空状态、Import、Settings 导航正常，页面无横向溢出。未部署。
+- 环境注意：根 `corepack pnpm test` 因内部脚本无法找到 PATH 中的 `pnpm` 而失败；改用 Corepack 对各 workspace package 直接运行等价 test 脚本，均通过。
 
 ### 2026-10-30 · 本地历史（Records）
 

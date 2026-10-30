@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CaretRight, FilmStrip, Warning } from "@phosphor-icons/react";
+import { CaretRight, CheckCircle, FilmStrip, Warning } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { t } from "@/messages";
 import { listAnalyses, reconcileStorage, type AnalysisRecord } from "@/storage/analyses";
@@ -40,13 +40,30 @@ export function RecordsPanel({ active, onImport }: { active: boolean; onImport: 
   };
 
   const open = records?.find((r) => r.id === openId);
-  if (open) return <RecordDetail record={open} missing={missing.has(open.id)} onClose={close} />;
+  const featured = records?.[0];
+  if (open) {
+    return (
+      <div className="record-detail">
+        <RecordDetail record={open} missing={missing.has(open.id)} onClose={close} />
+      </div>
+    );
+  }
 
   return (
-    <section aria-labelledby="records-title" className="flex flex-col gap-4">
-      <h2 id="records-title" ref={listRef} tabIndex={-1} className="font-display text-xl font-semibold outline-none">
-        {t("records.title")}
-      </h2>
+    <section aria-labelledby="records-title" className="records-page">
+      <div className="page-intro">
+        <div>
+          <p className="page-eyebrow">{t("records.eyebrow")}</p>
+          <h1 id="records-title" ref={listRef} tabIndex={-1} className="page-title outline-none">
+            {t("records.title")}
+          </h1>
+          <p className="page-description">{t("records.description")}</p>
+        </div>
+        <Button className="records-import" onClick={onImport}>
+          <FilmStrip size={20} aria-hidden="true" />
+          {t("records.import")}
+        </Button>
+      </div>
 
       {failed && (
         <p role="alert" className="inline-flex items-center gap-2 text-sm text-warning">
@@ -58,65 +75,82 @@ export function RecordsPanel({ active, onImport }: { active: boolean; onImport: 
       {!failed && records === null && <p className="text-sm text-muted-foreground">{t("records.loading")}</p>}
 
       {records?.length === 0 && (
-        <div className="rounded-xl bg-card p-6 text-center text-card-foreground">
-          <p className="font-display text-lg font-semibold">{t("records.empty.title")}</p>
-          <p className="mt-2 text-sm text-muted-foreground">{t("records.empty.body")}</p>
-          <ul className="mx-auto mt-2 max-w-xs list-disc pl-5 text-left text-sm text-muted-foreground">
+        <div className="records-empty">
+          <p className="page-eyebrow">{t("records.empty.eyebrow")}</p>
+          <h2>{t("records.empty.title")}</h2>
+          <p className="empty-description">{t("records.empty.body")}</p>
+          <ul>
             <li>{t("records.empty.tip1")}</li>
             <li>{t("records.empty.tip2")}</li>
             <li>{t("records.empty.tip3")}</li>
           </ul>
-          <Button className="mt-4" onClick={onImport}>
-            <FilmStrip size={20} aria-hidden="true" />
-            {t("records.import")}
-          </Button>
         </div>
       )}
 
-      {records && records.length > 0 && (
+      {featured && (
         <>
-          <ul className="flex flex-col gap-3">
-            {records.map((r) => (
-              <li key={r.id}>
-                <button
-                  type="button"
-                  onClick={() => setOpenId(r.id)}
-                  className="flex min-h-11 w-full items-center gap-3 rounded-xl bg-card p-4 text-left text-card-foreground transition-colors hover:bg-accent"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold">{r.fileName}</span>
-                    <span className="mt-0.5 block text-sm text-muted-foreground">
-                      {t("records.kind.skeleton")} · {formatDate(r.createdAt)}
-                    </span>
-                    <span className="mt-0.5 block text-sm tabular-nums text-muted-foreground">
-                      {(r.video.durationMs / 1000).toFixed(1)} s · {r.video.width}×{r.video.height} ·{" "}
-                      {Math.round(r.video.fps)} fps · {settingLabel(r)}
-                    </span>
-                    <span className="mt-0.5 block text-sm tabular-nums text-muted-foreground">
-                      {r.framesWithPose} / {r.frames} {t("records.framesWithPose")}
-                    </span>
-                    {(missing.has(r.id) || r.recovered) && (
-                      <span className="mt-1 flex flex-wrap gap-2">
-                        {missing.has(r.id) && (
-                          <span className="inline-flex items-center gap-1 rounded-sm border border-warning px-2 py-0.5 text-xs text-warning">
-                            <Warning size={14} aria-hidden="true" />
-                            {t("records.missing")}
-                          </span>
-                        )}
-                        {r.recovered && (
-                          <span className="inline-flex items-center rounded-sm border border-input px-2 py-0.5 text-xs text-muted-foreground">
-                            {t("records.recovered")}
-                          </span>
-                        )}
+          <section aria-labelledby="featured-record-title" className="featured-record-section">
+            <div className="section-label">
+              <span>{t("records.featured")}</span>
+              <span>01 / {String(records.length).padStart(2, "0")}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpenId(featured.id)}
+              className="record-feature"
+            >
+              <span className="record-feature-count">
+                <span className="feature-eyebrow">{t("records.poseFrames")}</span>
+                <span className="feature-number tabular-nums">{featured.framesWithPose}</span>
+                <span className="feature-unit">{t("records.framesWithPose")}</span>
+              </span>
+              <span className="record-feature-info">
+                <span className="feature-eyebrow">{t("records.kind.skeleton")} / {formatDate(featured.createdAt)}</span>
+                <span id="featured-record-title" className="feature-title">{featured.fileName}</span>
+                <span className="feature-meta tabular-nums">
+                  {(featured.video.durationMs / 1000).toFixed(1)} s · {featured.video.width}×{featured.video.height} ·{" "}
+                  {Math.round(featured.video.fps)} fps
+                </span>
+                <span className="feature-meta">{settingLabel(featured)} · {featured.frames} {t("records.frames")}</span>
+                <span className={missing.has(featured.id) ? "feature-status warning" : "feature-status valid"}>
+                  {missing.has(featured.id) ? (
+                    <Warning size={18} aria-hidden="true" />
+                  ) : (
+                    <CheckCircle size={18} aria-hidden="true" />
+                  )}
+                  {missing.has(featured.id) ? t("records.missing") : t("records.poseTrackAvailable")}
+                </span>
+                {featured.recovered && <span className="feature-recovered">{t("records.recovered")}</span>}
+                <span className="feature-open">{t("records.open")} <CaretRight size={20} aria-hidden="true" /></span>
+              </span>
+            </button>
+          </section>
+
+          {records.length > 1 && (
+            <section className="records-list" aria-labelledby="session-log-title">
+              <div className="section-label">
+                <span id="session-log-title">{t("records.sessionLog")}</span>
+                <span>{t("records.storage")}</span>
+              </div>
+              <ul>
+                {records.slice(1).map((r, index) => (
+                  <li key={r.id}>
+                    <button type="button" onClick={() => setOpenId(r.id)} className="record-row">
+                      <span className="record-index">{String(index + 2).padStart(2, "0")}</span>
+                      <span className="record-row-main">
+                        <span className="record-row-title">{r.fileName}</span>
+                        <span className="record-row-sub">{t("records.kind.skeleton")} / {formatDate(r.createdAt)}</span>
                       </span>
-                    )}
-                  </span>
-                  <CaretRight size={20} aria-hidden="true" className="shrink-0 text-muted-foreground" />
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="text-xs text-muted-foreground">{t("records.storage")}</p>
+                      <span className="record-row-meta tabular-nums">
+                        {(r.video.durationMs / 1000).toFixed(1)} s · {r.video.width}×{r.video.height} · {Math.round(r.video.fps)} fps
+                      </span>
+                      <CaretRight size={20} aria-hidden="true" className="record-row-arrow" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </>
       )}
     </section>

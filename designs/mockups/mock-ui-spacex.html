@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; media-src 'self' file: blob:; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Action Tracker - SpaceX Direction Preview</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --black: #000000;
+      --stage: #0b0b0d;
+      --white: #fafafa;
+      --muted: #b4b4bd;
+      --line: #3a3a3f;
+      --orange: #f97316;
+      --orange-ink: #18181b;
+      --valid: #86d9a8;
+      --warning: #fcd177;
+      --font: "Arial Narrow", "Aptos Narrow", "Segoe UI", sans-serif;
+      --body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { min-width: 320px; background: var(--black); }
+    body { margin: 0; min-height: 100vh; color: var(--white); background: var(--black); font: 15px/1.5 var(--body); }
+    button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
+    button:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
+    [hidden] { display: none !important; }
+    .shell { min-height: 100vh; }
+    .topbar { height: 74px; padding: 0 5.2vw; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+    .wordmark { display: flex; align-items: center; gap: 12px; font: 700 17px/1 var(--font); letter-spacing: 1.4px; text-transform: uppercase; }
+    .mark { width: 25px; height: 25px; border: 1px solid var(--white); display: grid; place-items: center; font: 700 12px/1 var(--font); }
+    .privacy { color: var(--muted); font-size: 12px; letter-spacing: .5px; }
+    .workspace { max-width: 1500px; margin: 0 auto; padding: 0 5.2vw 56px; }
+    .nav { min-height: 66px; display: flex; align-items: center; gap: 30px; border-bottom: 1px solid var(--line); }
+    .nav button { height: 66px; padding: 0 2px; position: relative; border: 0; background: transparent; color: var(--muted); font: 700 12px/1 var(--font); letter-spacing: 1.5px; text-transform: uppercase; }
+    .nav button[aria-current="page"] { color: var(--white); }
+    .nav button[aria-current="page"]::after { content: ""; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--orange); }
+    .page { padding-top: clamp(32px, 5vw, 68px); }
+    .eyebrow { color: var(--muted); font: 400 11px/1.8 var(--font); letter-spacing: 1.6px; text-transform: uppercase; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { margin-top: 6px; font: 700 clamp(38px, 5.2vw, 70px)/.98 var(--font); letter-spacing: 1px; text-transform: uppercase; }
+    .intro { display: flex; align-items: end; justify-content: space-between; gap: 24px; padding-bottom: 30px; }
+    .intro-copy { max-width: 620px; }
+    .intro-copy p { margin-top: 12px; color: var(--muted); max-width: 440px; font-size: 14px; }
+    .action { min-height: 46px; padding: 0 22px; border: 1px solid var(--orange); border-radius: 999px; background: var(--orange); color: var(--orange-ink); font: 700 12px/1 var(--font); letter-spacing: 1.1px; text-transform: uppercase; }
+    .action:hover { opacity: .9; }
+    .section-label { display: flex; align-items: center; justify-content: space-between; padding: 13px 0; border-top: 1px solid var(--line); color: var(--muted); font: 400 11px/1.4 var(--font); letter-spacing: 1.4px; text-transform: uppercase; }
+    .featured { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(270px, .75fr); min-height: 320px; border-bottom: 1px solid var(--line); }
+    .video-frame { position: relative; height: min(34vw, 460px); min-height: 320px; overflow: hidden; background: var(--stage); }
+    .video-frame video { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: contain; opacity: .9; }
+    .video-frame::after { content: ""; position: absolute; inset: 55% 0 0; background: linear-gradient(transparent, rgb(0 0 0 / .55)); pointer-events: none; }
+    .frame-index, .frame-duration { position: absolute; z-index: 1; top: 16px; padding: 7px 10px; background: rgb(0 0 0 / .68); font: 400 10px/1 var(--font); letter-spacing: 1.2px; text-transform: uppercase; }
+    .frame-index { left: 16px; }
+    .frame-duration { right: 16px; font-variant-numeric: tabular-nums; }
+    .playback { position: absolute; z-index: 2; left: calc(50% - 21px); bottom: 14px; width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / .8); border-radius: 50%; background: rgb(0 0 0 / .45); }
+    .playback::before { content: ""; margin-left: 3px; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 9px solid white; }
+    .session { display: flex; flex-direction: column; justify-content: space-between; padding: 24px 28px; background: var(--black); }
+    .session h2 { margin-top: 7px; overflow-wrap: anywhere; font: 700 clamp(23px, 2.8vw, 34px)/1.08 var(--font); letter-spacing: .6px; text-transform: uppercase; }
+    .session-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 12px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .session-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 32px 0 22px; padding: 17px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .stat small { display: block; color: var(--muted); font: 400 10px/1.5 var(--font); letter-spacing: 1.1px; text-transform: uppercase; }
+    .stat strong { display: block; margin-top: 4px; font: 700 25px/1.1 var(--font); font-variant-numeric: tabular-nums; }
+    .status { display: inline-flex; align-items: center; gap: 7px; color: var(--valid); font: 700 10px/1.5 var(--font); letter-spacing: 1.15px; text-transform: uppercase; }
+    .status::before { content: ""; width: 7px; height: 7px; border: 1px solid currentColor; border-radius: 50%; }
+    .open-record { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 48px; margin-top: 14px; padding: 0; border: 0; border-top: 1px solid var(--line); background: transparent; text-align: left; font: 700 11px/1 var(--font); letter-spacing: 1.2px; text-transform: uppercase; }
+    .arrow { color: var(--orange); font-size: 20px; }
+    .records { margin-top: 38px; }
+    .record-row { display: grid; grid-template-columns: 74px minmax(160px, 1fr) minmax(200px, .7fr) auto; align-items: center; gap: 22px; min-height: 78px; border-bottom: 1px solid var(--line); }
+    .record-no { color: #77777e; font: 400 11px/1 var(--font); letter-spacing: 1px; }
+    .record-title { font: 700 15px/1.25 var(--font); letter-spacing: .7px; text-transform: uppercase; }
+    .record-sub, .record-data { margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .record-data { margin-top: 0; font-variant-numeric: tabular-nums; }
+    .record-row .arrow { padding: 8px; }
+    .import-layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr); gap: 42px; margin-top: 34px; }
+    .dropzone { min-height: 280px; display: grid; place-content: center; justify-items: center; padding: 28px; border: 1px dashed #66666d; background: radial-gradient(ellipse at center, #101012, #000 68%); text-align: center; }
+    .upload-mark { width: 54px; height: 54px; display: grid; place-items: center; margin-bottom: 17px; border: 1px solid var(--line); border-radius: 50%; font: 400 28px/1 var(--font); }
+    .dropzone h2 { font: 700 22px/1.1 var(--font); letter-spacing: .9px; text-transform: uppercase; }
+    .dropzone p { max-width: 320px; margin: 8px 0 20px; color: var(--muted); font-size: 13px; }
+    .settings { border-top: 1px solid var(--line); }
+    .settings h2 { padding: 13px 0; color: var(--muted); font: 400 11px/1.4 var(--font); letter-spacing: 1.4px; text-transform: uppercase; }
+    .setting { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 58px; border-top: 1px solid var(--line); }
+    .setting span:first-child { font-size: 13px; }
+    .setting strong { color: var(--muted); font-size: 12px; font-weight: 500; text-align: right; }
+    .notice { margin-top: 20px; padding: 12px 14px; border-left: 2px solid var(--warning); color: var(--muted); font-size: 12px; }
+    .footer { margin-top: 54px; padding-top: 15px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; color: #77777e; font: 400 10px/1.5 var(--font); letter-spacing: 1.1px; text-transform: uppercase; }
+    .mobile-nav { display: none; }
+    @media (min-width: 1200px) { .workspace { padding-left: 7vw; padding-right: 7vw; } }
+    @media (max-width: 760px) {
+      .topbar { height: 62px; padding: 0 20px; }
+      .privacy { max-width: 145px; text-align: right; font-size: 10px; }
+      .workspace { padding: 0 20px 94px; }
+      .nav { display: none; }
+      .page { padding-top: 34px; }
+      .intro { align-items: flex-start; flex-direction: column; gap: 20px; padding-bottom: 24px; }
+      h1 { font-size: clamp(38px, 12vw, 54px); }
+      .intro-copy p { max-width: 340px; font-size: 13px; }
+      .action { width: 100%; }
+      .featured { grid-template-columns: 1fr; }
+      .video-frame { height: min(42vh, 360px); min-height: 250px; }
+      .session { min-height: 250px; padding: 20px 4px 16px; }
+      .session-stats { margin: 20px 0 12px; }
+      .records { margin-top: 30px; }
+      .record-row { grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; min-height: 76px; }
+      .record-data { display: none; }
+      .record-title { font-size: 13px; }
+      .import-layout { grid-template-columns: 1fr; gap: 30px; margin-top: 24px; }
+      .dropzone { min-height: 250px; }
+      .footer { margin-top: 38px; padding-bottom: 12px; font-size: 9px; }
+      .mobile-nav { position: fixed; z-index: 4; right: 0; bottom: 0; left: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 7px 12px max(8px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: rgb(0 0 0 / .96); }
+      .mobile-nav button { min-height: 50px; border: 0; background: transparent; color: var(--muted); font: 700 10px/1 var(--font); letter-spacing: 1px; text-transform: uppercase; }
+      .mobile-nav button[aria-current="page"] { color: var(--white); }
+      .mobile-nav button[aria-current="page"] span { color: var(--orange); }
+      .mobile-nav span { display: block; margin-bottom: 5px; color: #77777e; font: 400 17px/1 var(--body); }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="wordmark"><span class="mark" aria-hidden="true">A</span><span>Action Tracker</span></div>
+      <p class="privacy">ON-DEVICE ANALYSIS / PRIVATE BY DESIGN</p>
+    </header>
+    <main class="workspace">
+      <nav class="nav" aria-label="Main">
+        <button type="button" data-view="records" aria-current="page">Records</button>
+        <button type="button" data-view="import">Import</button>
+        <button type="button" data-view="settings">Settings</button>
+      </nav>
+
+      <section class="page" id="records-view" aria-labelledby="records-title">
+        <div class="intro">
+          <div class="intro-copy">
+            <p class="eyebrow">Movement archive / Local storage</p>
+            <h1 id="records-title">Records</h1>
+            <p>Every session, measured on this device. Choose a recording to inspect its pose track and analysis details.</p>
+          </div>
+          <button type="button" class="action" data-view="import">+ &nbsp; Import video</button>
+        </div>
+        <div class="section-label"><span>Featured session</span><span>01 / 01</span></div>
+        <article class="featured">
+          <div class="video-frame">
+            <video src="assets/sample1-360p.mp4" muted autoplay loop playsinline aria-label="Local sample session preview"></video>
+            <span class="frame-index">Local preview / Sample 01</span>
+            <span class="frame-duration">00:07.7</span>
+            <button type="button" class="playback" aria-label="Play sample video" title="Play or pause preview"></button>
+          </div>
+          <div class="session">
+            <div>
+              <p class="eyebrow">Skeleton / Front view</p>
+              <h2>sample1.MOV</h2>
+              <p class="session-meta"><span>7.7 sec</span><span>2160 × 3840</span><span>59.97 fps</span></p>
+            </div>
+            <div>
+              <div class="session-stats">
+                <div class="stat"><small>Pose frames</small><strong>232 / 232</strong></div>
+                <div class="stat"><small>Model</small><strong>Heavy</strong></div>
+              </div>
+              <span class="status">Pose track available</span>
+              <button type="button" class="open-record">Open session <span class="arrow" aria-hidden="true">&#8594;</span></button>
+            </div>
+          </div>
+        </article>
+        <section class="records" aria-labelledby="recent-title">
+          <div class="section-label"><span id="recent-title">Session log</span><span>Stored on this device</span></div>
+          <div class="record-row">
+            <span class="record-no">01</span>
+            <div><h3 class="record-title">sample1.MOV</h3><p class="record-sub">Skeleton analysis / Front view</p></div>
+            <p class="record-data">7.7 sec &nbsp; / &nbsp; 2160 × 3840 &nbsp; / &nbsp; 60 fps</p>
+            <span class="arrow" aria-hidden="true">&#8594;</span>
+          </div>
+        </section>
+      </section>
+
+      <section class="page" id="import-view" aria-labelledby="import-title" hidden>
+        <div class="intro">
+          <div class="intro-copy">
+            <p class="eyebrow">New session / Runs on this device</p>
+            <h1 id="import-title">Import</h1>
+            <p>Select a video from Photos or Files. Video decoding and pose detection stay on this device.</p>
+          </div>
+        </div>
+        <div class="section-label"><span>Video source</span><span>MP4 / MOV</span></div>
+        <div class="import-layout">
+          <div class="dropzone">
+            <span class="upload-mark" aria-hidden="true">+</span>
+            <h2>Select a video</h2>
+            <p>Choose an original recording from this device to begin pose analysis.</p>
+            <button type="button" class="action" id="choose-video">Choose video</button>
+            <input id="video-file" type="file" accept="video/*,.mov,.mp4" hidden>
+          </div>
+          <aside>
+            <div class="settings">
+              <h2>Analysis settings</h2>
+              <div class="setting"><span>Pose model</span><strong>Full / 9 MB</strong></div>
+              <div class="setting"><span>Inference size</span><strong>1280 px</strong></div>
+              <div class="setting"><span>Processing</span><strong>On-device</strong></div>
+            </div>
+            <p class="notice">Keep this screen open while analysis is running. Your video is not uploaded.</p>
+          </aside>
+        </div>
+      </section>
+
+      <section class="page" id="settings-view" aria-labelledby="settings-title" hidden>
+        <div class="intro">
+          <div class="intro-copy">
+            <p class="eyebrow">Device / Preferences</p>
+            <h1 id="settings-title">Settings</h1>
+            <p>Local analysis environment and device diagnostics.</p>
+          </div>
+        </div>
+        <div class="import-layout">
+          <div class="settings">
+            <h2>Analysis</h2>
+            <div class="setting"><span>Default pose model</span><strong>Full</strong></div>
+            <div class="setting"><span>Storage</span><strong>On this device</strong></div>
+            <div class="setting"><span>Language</span><strong>English</strong></div>
+          </div>
+          <div class="settings">
+            <h2>Diagnostics</h2>
+            <div class="setting"><span>Browser capability check</span><strong>Available</strong></div>
+            <div class="setting"><span>Network upload</span><strong>Not used</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer"><span>Action Tracker / Concept preview</span><span>Local data only</span></footer>
+    </main>
+    <nav class="mobile-nav" aria-label="Main mobile navigation">
+      <button type="button" data-view="records" aria-current="page"><span aria-hidden="true">01</span>Records</button>
+      <button type="button" data-view="import"><span aria-hidden="true">02</span>Import</button>
+      <button type="button" data-view="settings"><span aria-hidden="true">03</span>Settings</button>
+    </nav>
+  </div>
+  <script>
+    const views = ["records", "import", "settings"];
+    document.querySelectorAll("[data-view]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const next = button.dataset.view;
+        views.forEach((view) => {
+          document.getElementById(`${view}-view`).hidden = view !== next;
+        });
+        document.querySelectorAll("[data-view]").forEach((item) => {
+          if (item.dataset.view === next) item.setAttribute("aria-current", "page");
+          else item.removeAttribute("aria-current");
+        });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
+    const video = document.querySelector(".video-frame video");
+    document.querySelector(".playback").addEventListener("click", () => {
+      if (video.paused) void video.play();
+      else video.pause();
+    });
+    document.getElementById("choose-video").addEventListener("click", () => document.getElementById("video-file").click());
+    document.getElementById("video-file").addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (file) document.querySelector(".dropzone h2").textContent = file.name;
+    });
+  </script>
+</body>
+</html>

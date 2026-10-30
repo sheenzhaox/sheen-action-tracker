@@ -23,74 +23,91 @@ export function AnalyzePanel() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <section aria-labelledby="analyze-title" className="rounded-xl bg-card p-4 text-card-foreground">
-        <h2 id="analyze-title" className="font-display text-xl font-semibold">
-          {t("analyze.title")}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t("analyze.description")}</p>
-
-        <fieldset className="mt-4 flex flex-col gap-3" disabled={running}>
-          <legend className="text-sm font-semibold">{t("settings.title")}</legend>
-          <div className="flex flex-col gap-1">
-            <span className="text-sm text-muted-foreground">{t("settings.model")}</span>
-            <Segmented
-              label={t("settings.model")}
-              options={[
-                { value: "full", label: t("settings.model.full") },
-                { value: "lite", label: t("settings.model.lite") },
-              ]}
-              value={options.model}
-              onChange={(model) => setOptions((o) => ({ ...o, model }))}
-              disabled={running}
-            />
+    <div className="analyze-page">
+      <section aria-labelledby="analyze-title" className="analyze-panel">
+        <div className="page-intro">
+          <div>
+            <p className="page-eyebrow">{t("analyze.eyebrow")}</p>
+            <h1 id="analyze-title" className="page-title">
+              {t("analyze.title")}
+            </h1>
+            <p className="page-description">{t("analyze.description")}</p>
           </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-sm text-muted-foreground">{t("settings.size")}</span>
-            <Segmented
-              label={t("settings.size")}
-              options={INFERENCE_LONG_EDGES.map((v) => ({ value: v, label: `${v} px` }))}
-              value={options.inferenceLongEdge as (typeof INFERENCE_LONG_EDGES)[number]}
-              onChange={(inferenceLongEdge) => setOptions((o) => ({ ...o, inferenceLongEdge }))}
-              disabled={running}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">{t("settings.hint")}</p>
-        </fieldset>
-        <input
-          ref={input}
-          type="file"
-          accept="video/*,.mov,.mp4"
-          className="sr-only"
-          tabIndex={-1}
-          aria-hidden="true"
-          onChange={onFile}
-        />
+        </div>
 
-        {state.status === "running" ? (
-          <div className="mt-4" aria-live="polite">
-            <p className="font-medium">{t(`stage.${state.stage}` as MessageKey)}</p>
-            <progress
-              className="mt-2 h-2 w-full overflow-hidden rounded-full accent-[var(--primary)]"
-              max={Math.max(1, state.total)}
-              value={state.stage === "analyze" || state.stage === "save" ? state.done : undefined}
+        <div className="section-label analyze-section-label">
+          <span>{t("analyze.source")}</span>
+          <span>{t("analyze.formats")}</span>
+        </div>
+
+        <div className="analyze-layout">
+          <div className="analyze-source">
+            <span className="analyze-plus" aria-hidden="true">+</span>
+            <h2>{t("analyze.sourceTitle")}</h2>
+            <p>{t("analyze.sourceDescription")}</p>
+            <input
+              ref={input}
+              type="file"
+              accept="video/*,.mov,.mp4"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
+              onChange={onFile}
             />
-            {state.total > 0 && (
-              <p className="mt-1 text-sm tabular-nums text-muted-foreground">
-                {state.done} / {state.total} {t("analyze.frames")}
-              </p>
+            {state.status === "running" ? (
+              <div className="analyze-progress" aria-live="polite">
+                <p className="font-medium">{t(`stage.${state.stage}` as MessageKey)}</p>
+                <progress
+                  className="mt-2 h-2 w-full overflow-hidden rounded-full accent-[var(--primary)]"
+                  max={Math.max(1, state.total)}
+                  value={state.stage === "analyze" || state.stage === "save" ? state.done : undefined}
+                />
+                {state.total > 0 && (
+                  <p className="mt-1 text-sm tabular-nums text-muted-foreground">
+                    {state.done} / {state.total} {t("analyze.frames")}
+                  </p>
+                )}
+                <p className="mt-1 text-sm text-muted-foreground">{t("analyze.keepOpen")}</p>
+                <Button variant="secondary" className="mt-3" onClick={cancel}>
+                  {t("analyze.cancel")}
+                </Button>
+              </div>
+            ) : (
+              <Button className="analyze-choose" onClick={state.status === "idle" ? pick : () => (reset(), pick())}>
+                <FilmStrip size={20} aria-hidden="true" />
+                {state.status === "idle" ? t("analyze.pick") : t("analyze.again")}
+              </Button>
             )}
-            <p className="mt-1 text-sm text-muted-foreground">{t("analyze.keepOpen")}</p>
-            <Button variant="secondary" className="mt-3" onClick={cancel}>
-              {t("analyze.cancel")}
-            </Button>
           </div>
-        ) : (
-          <Button className="mt-4" onClick={state.status === "idle" ? pick : () => (reset(), pick())}>
-            <FilmStrip size={20} aria-hidden="true" />
-            {state.status === "idle" ? t("analyze.pick") : t("analyze.again")}
-          </Button>
-        )}
+
+          <fieldset className="analyze-settings" disabled={running}>
+            <legend>{t("analyze.settingsTitle")}</legend>
+            <div className="analyze-setting">
+              <span className="analyze-setting-label">{t("settings.model")}</span>
+              <Segmented
+                label={t("settings.model")}
+                options={[
+                  { value: "full", label: t("settings.model.full") },
+                  { value: "lite", label: t("settings.model.lite") },
+                ]}
+                value={options.model}
+                onChange={(model) => setOptions((o) => ({ ...o, model }))}
+                disabled={running}
+              />
+            </div>
+            <div className="analyze-setting">
+              <span className="analyze-setting-label">{t("settings.size")}</span>
+              <Segmented
+                label={t("settings.size")}
+                options={INFERENCE_LONG_EDGES.map((v) => ({ value: v, label: `${v} px` }))}
+                value={options.inferenceLongEdge as (typeof INFERENCE_LONG_EDGES)[number]}
+                onChange={(inferenceLongEdge) => setOptions((o) => ({ ...o, inferenceLongEdge }))}
+                disabled={running}
+              />
+            </div>
+            <p className="analyze-hint">{t("settings.hint")}</p>
+          </fieldset>
+        </div>
 
         {state.status === "error" && (
           <div role="alert" className="mt-4 rounded-md border border-warning p-3 text-sm">

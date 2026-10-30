@@ -1,6 +1,6 @@
 # 08 · UI / UX 设计
 
-> 状态：v0.1 草案（P1 部分实现）· 更新：2026-10-30（第 5.1 节记录列表 P1 实现）
+> 状态：v0.2 草案（P1 部分实现）· 更新：2026-10-30（记录 / 导入页面采用 SpaceX-inspired 黑白排版方向；见 ADR-016）
 > 依据：[ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) 技能生成并核对的设计系统 [design-system/action-tracker/MASTER.md](./design-system/action-tracker/MASTER.md)；产品约束来自 [01](./01-architecture.md)、[02](./02-pose-pipeline.md)、[03](./03-analysis-packs.md)、[07](./07-mobile-web.md)。
 > 静态原型：[mockups/ui-mockup.html](./mockups/ui-mockup.html)；shadcn 风格备选 A / B / C：[A](./mockups/mock-ui-shadcn.html)、[B](./mockups/mock-ui-shadcn-b.html)、[C](./mockups/mock-ui-shadcn-c.html)（见第 11.2 节；均可本地直接打开，不需要服务器，未部署）。
 
@@ -71,15 +71,17 @@ flowchart TD
 
 ### 5.1 记录（分析列表）
 
-- 顶部：标题 + "导入视频"主按钮（列表为空时居中显示，并附三条拍摄要点）。
-- 每条记录卡片：分析类型、拍摄日期、时长、摘要（如"挥拍 12 次 · 正手 8 · 反手 4"）、状态摘要（"2 项不可用"）。缩略图只来自本地 OPFS，不上传。
+- 顶栏：产品名称与本地隐私说明；桌面在顶栏下方显示导航，手机使用固定底部导航。记录页标题采用全大写 display，右侧提供橙色"导入视频"主操作。
+- 最新记录使用横向 feature layout：左侧显示真实的 pose frame 计数，右侧显示文件名、分析类型、日期、视频元数据、推理设置与状态；不显示虚构视频缩略图，也不为列表自动读取原视频。
+- 其余记录使用细分隔线列表，显示分析类型、日期、时长、分辨率和帧率；点击整行进入详情。`Recovered` / `Pose data missing` 保持图标 + 文字或清晰状态标签。
+- 空列表显示本地档案空状态、三条拍摄要点和导入主操作。
 - 原视频已被系统清除或换设备时（ADR-002）：卡片标"无原视频"，回放只播骨架动画（不用"仅骨架"，该词是分析类型名称）。
 - 长按或左滑删除；**必须**另有"更多 → 删除"按钮作为替代（不只靠手势）。
 - P1 实现（2026-10-30）：卡片显示文件名、类型（Skeleton）、日期、时长、分辨率、帧率、推理设置、检出帧数，以及"Recovered" / "Pose data missing"标签。暂无缩略图和手势；删除放在详情页底部，需要二次确认。详情页先只播放骨架，选回原视频（SHA-256 校验）后叠加回放。
 
 ### 5.2 检查与设置
 
-上半部分是视频首帧（含旋转），下半部分是设置卡片，底部固定主按钮"开始分析"。
+页面采用宽屏双栏、手机单栏：视频选择区与分析设置并列（手机上下排列）。选择文件后仍直接进入现有本地分析流程；处理中保留进度、取消和保持页面前台提示。使用纯黑舞台色、虚线边界与橙色胶囊主按钮；模型与推理尺寸控件仍遵循 MASTER token。
 
 | 区块 | 内容 |
 |---|---|
@@ -268,3 +270,10 @@ flowchart TD
 
 - 已在桌面浏览器检查 1440 px 浅色与 390 × 844 深色：无横向溢出、无脚本错误；C 的抽屉吸附、模式切换和曲线跳转已验证。
 - 选定后再把 shadcn/ui token（zinc 中性色）与 MASTER（slate）统一，并决定是否在 01 / ADR 中正式采用 shadcn/ui + Tailwind。
+
+### 11.3 SpaceX-inspired 应用视觉方向（2026-10-30，用户确认）
+
+- 采用纯黑深色画布、白色大写 display、工程感系统窄体、灰色 hairline 和桌面顶栏导航；手机保留 3 项固定底部导航。
+- 此方向只改变视觉表达，不变更 shadcn/ui + Tailwind（ADR-014）、本地优先、测量状态、橙色深色文字主操作、44 px 触控目标或浅色主题。
+- 实际 Records feature 使用数据库中的首条分析和已保存元数据，不引用 mockup 的 sample 视频。原视频不作为列表缩略图或装饰素材；只有用户在详情页选择并校验原视频后才显示。
+- 页面级原型：[mock-ui-spacex.html](./mockups/mock-ui-spacex.html)；实际应用中的 Records 与 Import 页面遵循同一视觉方向。

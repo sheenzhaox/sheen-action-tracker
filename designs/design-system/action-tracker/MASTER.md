@@ -1,6 +1,6 @@
 # Action Tracker 设计系统 · MASTER
 
-> 状态：v0.2 草案 · 更新：2026-10-30（按选定方案 C 统一 token，对齐 shadcn/ui 变量名，ADR-014；骨架尺寸随人物大小缩放，见 3.3）
+> 状态：v0.3 草案 · 更新：2026-10-30（采用 SpaceX-inspired 黑白排版方向；橙色主操作、测量状态色及移动端规则保持不变）
 > 来源：[ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) v2.15.0 生成后，按本项目约束**核对并修订**（对比度均已计算）。
 > 生成命令：`search.py "fitness gym app dark mode" --design-system -p "Action Tracker" --variance 3 --motion 2 --density 6`（产品类型匹配为 Fitness/Gym App）。
 
@@ -12,7 +12,7 @@
 
 | 项 | 取值 | 说明 |
 |---|---|---|
-| 风格 | **Minimalism & Swiss Style + 深色模式** | 工具型产品：内容（视频 + 骨架 + 数值）优先，装饰最少；网格对齐、清晰层级 |
+| 风格 | **SpaceX-inspired Minimalism + 深色模式** | 借鉴纯黑画布、工程感 display 字体、全大写导航和细分隔线；保留工具型信息层级、测量语义和移动端单手操作 |
 | 调节旋钮 | Variance 3 · Motion 2 · Density 6 | 简洁居中、动效克制、信息密度中等偏高 |
 | 产品性质 | 测量工具，不是营销页、不是游戏 | **不采用**生成结果中的 Feature-Rich Showcase 落地页结构；生成结果把"没有游戏化"列为健身 App 反模式（即建议加入徽章、积分等），本项目**不做游戏化、不打分**（ADR-012 只做测量） |
 | 主平台 | iPhone Safari 竖屏（ADR-010），兼顾横屏回放与桌面 | 移动优先，375 px 起 |
@@ -27,26 +27,26 @@
 
 对比度按 WCAG 2.x 计算（正文 ≥ 4.5:1；控件边界与有意义图形 ≥ 3:1）。
 
-### 3.1 基础（shadcn 变量名；2026-10-30 按选定方案 C 统一为 zinc 中性色）
+### 3.1 基础（shadcn 变量名；2026-10-30 采用 SpaceX-inspired 深色画布）
 
-变量名与 shadcn/ui 一致（Tailwind 中写 `bg-background`、`text-muted-foreground` 等），本项目新增的变量在下表标 ★。深色为 `.dark`（默认），浅色为 `:root`。
+变量名与 shadcn/ui 一致（Tailwind 中写 `bg-background`、`text-muted-foreground` 等），本项目新增的变量在下表标 ★。深色为 `.dark`（默认），浅色为 `:root`。深色画布用纯黑背景、近黑表面与灰色 hairline；hairline 只分层，不用于交互控件边界。
 
 | 变量 | 深色 | 浅色 | 用途 / 实测对比度（对 background / card / muted） |
 |---|---|---|---|
-| `--background` | `#0F0F11` | `#F4F4F5` | 页面底色 |
-| `--card` / `--popover` | `#1B1B1F` / `#202024` | `#FFFFFF` / `#FFFFFF` | 卡片、面板、抽屉；弹出层 |
-| `--muted` | `#26262B` | `#ECECEF` | 次级面、分段控件底 |
-| `--accent` | `#2C2C32` | `#E6E6EA` | 悬停 / 选中行底色（不作文字色） |
-| `--foreground` | `#FAFAFA` | `#18181B` | 正文：深 18.3 / 16.5 / 14.4；浅 16.1 / 17.7 / 15.0 |
-| `--muted-foreground` | `#B4B4BD` | `#595963` | 次要文字，也用于 `unavailable`：深 9.3 / 8.3 / 7.3；浅 6.3 / 6.9 / 5.9 |
+| `--background` | `#000000` | `#F4F4F5` | 页面底色 |
+| `--card` / `--popover` | `#0A0A0A` / `#0A0A0A` | `#FFFFFF` / `#FFFFFF` | 卡片、面板、抽屉；弹出层 |
+| `--muted` | `#141416` | `#ECECEF` | 次级面、分段控件底 |
+| `--accent` | `#202024` | `#E6E6EA` | 悬停 / 选中行底色（不作文字色） |
+| `--foreground` | `#FAFAFA` | `#18181B` | 正文：深约 20.1 / 19.0 / 17.6；浅 16.1 / 17.7 / 15.0 |
+| `--muted-foreground` | `#B4B4BD` | `#595963` | 次要文字，也用于 `unavailable`：深 10.2 / 9.6 / 8.9；浅 6.3 / 6.9 / 5.9 |
 | `--primary` | `#F97316` | `#EA580C` | 主按钮底色、选中态、进度 |
 | `--primary-foreground` | `#18181B` | `#18181B` | 主按钮文字：深 6.3；浅 5.0。**禁止白字**（深 2.8、浅 3.6，不达标） |
-| ★ `--primary-text` | `#FDBA74` | `#9A3412` | 橙色文字 / 链接：深 11.4 / 10.2 / 8.9；浅 6.7 / 7.3 / 6.2（`#F97316` 本身不作文字） |
-| `--border` | `#34343B` | `#DADADE` | **仅装饰性分隔线**（1.2–1.6，不能作控件边界） |
-| `--input` | `#6F6F7A` | `#777782` | 输入框、开关、次按钮边界：深 3.9 / 3.5 / 3.0；浅 4.0 / 4.4 / 3.8 |
+| ★ `--primary-text` | `#FDBA74` | `#9A3412` | 橙色文字 / 链接：深 12.5 / 11.7 / 10.9；浅 6.7 / 7.3 / 6.2（`#F97316` 本身不作文字） |
+| `--border` | `#3A3A3F` | `#DADADE` | **仅装饰性分隔线**（深色对黑约 1.9:1，不能作控件边界） |
+| `--input` | `#6F6F7A` | `#777782` | 输入框、开关、次按钮边界：深 4.2 / 4.0 / 3.7；浅 4.0 / 4.4 / 3.8 |
 | `--ring` | `#FDBA74` | `#9A3412` | 焦点环（2 px + 2 px offset）：同 `--primary-text` |
-| `--destructive` | `#F87171` | `#B91C1C` | 删除：深 6.9 / 6.2 / 5.4；浅 5.9 / 6.5 / 5.5 |
-| ★ `--warning` | `#FCD177` | `#854D0E` | 拍摄 / 质量警告：深 13.2 / 11.9 / 10.4；浅 6.2 / 6.9 / 5.8 |
+| `--destructive` | `#F87171` | `#B91C1C` | 删除：深 7.6 / 7.2 / 6.7；浅 5.9 / 6.5 / 5.5 |
+| ★ `--warning` | `#FCD177` | `#854D0E` | 拍摄 / 质量警告：深 14.5 / 13.7 / 12.7；浅 6.2 / 6.9 / 5.8 |
 | ★ `--stage` | `#0B0B0D` | `#0B0B0D` | 视频舞台底色（两种主题相同） |
 
 ### 3.2 指标状态（`Metric.status`，见 03 第 2 节）
@@ -55,9 +55,9 @@
 
 | 状态 | 变量（深 / 浅） | 对比度（对 card） | 图标（Phosphor） | 标签 | 数值显示 |
 |---|---|---|---|---|---|
-| `valid` | ★ `--valid` `#86D9A8` / `#166534` | 10.2 / 7.1 | `CheckCircle` | Valid | 正常显示数值与单位 |
-| `experimental` | ★ `--experimental` `#D3B9F4` / `#6B21A8` | 9.8 / 8.7 | `Flask` | Experimental | 显示数值，旁边标 "Experimental"，**不进入趋势图** |
-| `unavailable` | `--muted-foreground` | 8.3 / 6.9 | `Prohibit` | Unavailable | **不显示数值**，显示"—"和原因（`reasonCode` → `messageKey`），可点开查看详情 |
+| `valid` | ★ `--valid` `#86D9A8` / `#166534` | 11.8 / 7.1 | `CheckCircle` | Valid | 正常显示数值与单位 |
+| `experimental` | ★ `--experimental` `#D3B9F4` / `#6B21A8` | 11.3 / 8.7 | `Flask` | Experimental | 显示数值，旁边标 "Experimental"，**不进入趋势图** |
+| `unavailable` | `--muted-foreground` | 9.6 / 6.9 | `Prohibit` | Unavailable | **不显示数值**，显示"—"和原因（`reasonCode` → `messageKey`），可点开查看详情 |
 
 绿色只用于 `valid`，不用作主按钮（生成结果中 Accent/CTA = 绿色，已改）。
 
@@ -104,10 +104,10 @@
 | 用途 | 字体 | 说明 |
 |---|---|---|
 | 正文、控件 | `-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif` | 方案 C：iPhone 上即 SF Pro，零下载 |
-| 标题、大号数值 | `-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif`，600/700 | |
+| 标题、大号数值 | `"Arial Narrow", "Aptos Narrow", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif`，600/700 | 工程感窄体优先；仅使用系统字体，不下载 D-DIN |
 | 数字 | `font-variant-numeric: tabular-nums` | 播放中不断变化的角度、时间不跳动 |
 
-- 2026-10-30 起**只用系统字体**（随方案 C），取代 v0.1 的 Barlow / Barlow Condensed：iPhone 是主平台，SF Pro 可读性好且无需下载字体文件，也就不存在运行时请求外部字体的问题。界面只做英文（Q13），不需要中文字体回退。
+- 正文、控件继续使用系统字体；display 使用系统已有的 Arial Narrow / Aptos Narrow 回退链，取代 SF Pro Display 以获得更工程化的标题轮廓。不得下载 D-DIN 或其他外部字体。界面只做英文（Q13）。
 - 字号用 `rem`；输入框 ≥ 16 px（避免 iOS Safari 聚焦时自动放大）。
 - 字号阶梯：12（仅辅助标注）/ 14 / 16（正文）/ 20 / 24 / 32（大号数值）。
 

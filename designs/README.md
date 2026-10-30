@@ -1,6 +1,6 @@
 # Action Tracker 设计文档
 
-> 状态：**v0.3 设计 + P1 本地脚手架（未部署）** · 更新：2026-10-30（Q12 已确认；MASTER v0.2 采用 shadcn token；ADR-014 shadcn/ui + Tailwind，ADR-015 持拍手与反手类型属于运动员档案；P1 脚手架见 01 第 9 节）
+> 状态：**v0.3 设计 + P1 本地脚手架（未部署）** · 更新：2026-10-30（Q12 已确认；MASTER v0.3 采用 SpaceX-inspired 黑白排版方向；ADR-014 shadcn/ui + Tailwind，ADR-015 持拍手与反手类型属于运动员档案，ADR-016 UI 视觉方向）
 
 Action Tracker 是一个网页应用：把运动视频转换为人体骨架数据，再按运动项目（网球、健身）进行动作测量，输出次数、阶段、关节角度、节奏，以及每个指标是否可信。**v1 只做测量，不做动作纠错。**
 
@@ -21,6 +21,7 @@ Action Tracker 是一个网页应用：把运动视频转换为人体骨架数�
 | — | [shadcn 备选 A · Workbench](./mockups/mock-ui-shadcn.html) | 英文；紧凑工作台，回放 + 检查器双栏（nova） |
 | — | [shadcn 备选 B · Library + Session](./mockups/mock-ui-shadcn-b.html) | 英文；侧边栏 + 记录库数据表 + 会话仪表盘（lyra） |
 | — | [shadcn 方案 C · Mobile focus（✅ 已选定）](./mockups/mock-ui-shadcn-c.html) | 英文；iPhone 优先，底部抽屉；单腿蹲模式为 **sample1 真实视频 + 真实 MediaPipe 骨架叠加**（需本地 HTTP 打开），网球模式为合成示意（maia） |
+| — | [SpaceX-inspired UI 原型（已实现于 Records / Import）](./mockups/mock-ui-spacex.html) | 英文；黑白工程感 display、桌面横向导航、手机底部导航；仅作应用视觉方向参考 |
 | — | [mockups/assets/](./mockups/assets/) | C 用的素材：`sample1-360p.mp4`（本地缩小转码）与 `sample1-pose.json`（离线 Pose Landmarker heavy 33 点结果）；源于 `videos/`，不得外传 |
 | — | [mockups/tools/extract_pose.py](./mockups/tools/extract_pose.py) | 离线重新生成上述素材并写回 C 的内嵌姿态数据（安装与模型下载见文件头） |
 
