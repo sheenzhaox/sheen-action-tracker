@@ -1,10 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["ES2023", "WebWorker"],
+    "lib": ["ES2023", "WebWorker", "WebWorker.AsyncIterable"],
     "types": ["vite/client"],
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["src/pipeline"],
-  "exclude": ["src/pipeline/**/*.test.ts"]
+  "include": ["src/pipeline", "src/storage"],
+  "exclude": ["src/**/*.test.ts"]
 }

@@ -1,6 +1,6 @@
 # 04 · 数据模型与 API
 
-> 状态：v0.3 草案 · 更新：2026-10-30（athletes 增加 `backhand_type`，`dominant_hand` 允许 `unknown`，ADR-015）
+> 状态：v0.3 草案 · 更新：2026-10-30（athletes 增加 `backhand_type`，`dominant_hand` 允许 `unknown`，ADR-015；第 6 节补 P1 本地存储实现现状）
 
 ## 1. 数据分布原则
 
@@ -301,6 +301,8 @@ stateDiagram-v2
 | IndexedDB `action-tracker` | athletes、recordings、analyses、events、event_phases、metrics、findings、annotations（与 D1 同构）+ `sync_state` |
 | OPFS | `/{recordingId}/{analysisId}/pose.raw.ptrk.gz`、`pose.ptrk.gz`、`report.json.gz`、`manifest.json`、`labels.json`；进行中的分析写在 `/tmp/{jobId}/`，完成后再提交（见 02 第 12 节） |
 | 不存 | 视频本体（每次分析通过文件选择器重新提供；可选保存 `FileSystemFileHandle` 以便重新打开） |
+
+**P1 实现现状**（2026-10-30）：IndexedDB `action-tracker` v1 只有 `recordings`（`videoSha256` 唯一索引）和 `analyses`（索引：`recordingId`、`videoSha256`、`createdAt`）两个 store，其余 store 在对应功能实现时加版本升级。OPFS 暂用扁平的 `analyses/<analysisId>/raw.ptrk.gz` + `manifest.json`，没有 tmp 目录；完成标记与对账规则见 [02 第 13 节](./02-pose-pipeline.md)。iOS Safari 不支持 `showOpenFilePicker`，因此不保存 `FileSystemFileHandle`，重新打开时让用户再选一次视频并按 SHA-256 校验。
 
 **存储配额与持久化**：
 

@@ -1,6 +1,6 @@
 # 08 · UI / UX 设计
 
-> 状态：v0.1 草案（仅设计，未实现）· 更新：2026-10-29
+> 状态：v0.1 草案（P1 部分实现）· 更新：2026-10-30（第 5.1 节记录列表 P1 实现）
 > 依据：[ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) 技能生成并核对的设计系统 [design-system/action-tracker/MASTER.md](./design-system/action-tracker/MASTER.md)；产品约束来自 [01](./01-architecture.md)、[02](./02-pose-pipeline.md)、[03](./03-analysis-packs.md)、[07](./07-mobile-web.md)。
 > 静态原型：[mockups/ui-mockup.html](./mockups/ui-mockup.html)；shadcn 风格备选 A / B / C：[A](./mockups/mock-ui-shadcn.html)、[B](./mockups/mock-ui-shadcn-b.html)、[C](./mockups/mock-ui-shadcn-c.html)（见第 11.2 节；均可本地直接打开，不需要服务器，未部署）。
 
@@ -75,6 +75,7 @@ flowchart TD
 - 每条记录卡片：分析类型、拍摄日期、时长、摘要（如"挥拍 12 次 · 正手 8 · 反手 4"）、状态摘要（"2 项不可用"）。缩略图只来自本地 OPFS，不上传。
 - 原视频已被系统清除或换设备时（ADR-002）：卡片标"无原视频"，回放只播骨架动画（不用"仅骨架"，该词是分析类型名称）。
 - 长按或左滑删除；**必须**另有"更多 → 删除"按钮作为替代（不只靠手势）。
+- P1 实现（2026-10-30）：卡片显示文件名、类型（Skeleton）、日期、时长、分辨率、帧率、推理设置、检出帧数，以及"Recovered" / "Pose data missing"标签。暂无缩略图和手势；删除放在详情页底部，需要二次确认。详情页先只播放骨架，选回原视频（SHA-256 校验）后叠加回放。
 
 ### 5.2 检查与设置
 

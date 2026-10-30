@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PtrkTrack } from "@action-tracker/pose-core/io";
 import type { ErrorCode, FromWorker, PipelineOptions, ProbeInfo, RunSummary, Stage, ToWorker } from "@/pipeline/protocol";
 import { REFERENCE_SETTING } from "@/pipeline/assets";
+import { hashFile } from "@/pipeline/hash";
+import { requestPersistentStorage } from "@/storage/analyses";
 import { compareTracks, loadReferenceTrack, type TrackDiff } from "./compare";
 
 export type Comparison =
@@ -25,7 +27,7 @@ export const DEFAULT_OPTIONS: PipelineOptions = {
 const isReference = (o: PipelineOptions) =>
   o.model === REFERENCE_SETTING.model && o.inferenceLongEdge === REFERENCE_SETTING.inferenceLongEdge;
 
-async function compareWithReference(summary: RunSummary, track: PtrkTrack): Promise<Comparison> {
+export async function compareWithReference(summary: RunSummary, track: PtrkTrack): Promise<Comparison> {
   if (isReference(summary.options)) return { status: "self" };
   const ref = await loadReferenceTrack(summary.videoSha256, summary.analysisId);
   if (!ref) return { status: "none" };
@@ -39,11 +41,14 @@ export function usePipeline() {
   const workers = useRef<Worker[]>([]);
   const pipeline = useRef<Worker | null>(null);
   const wakeLock = useRef<WakeLockSentinelLike | null>(null);
+  const cancelHash = useRef<(() => void) | null>(null);
 
   const stop = useCallback(() => {
     for (const w of workers.current) w.terminate();
     workers.current = [];
     pipeline.current = null;
+    cancelHash.current?.();
+    cancelHash.current = null;
     void wakeLock.current?.release().catch(() => undefined);
     wakeLock.current = null;
   }, []);
@@ -63,16 +68,16 @@ export function usePipeline() {
         .catch(() => undefined);
 
       const pipe = new Worker(new URL("../../pipeline/pipeline.worker.ts", import.meta.url), { type: "module" });
-      const hasher = new Worker(new URL("../../pipeline/hash.worker.ts", import.meta.url), { type: "module" });
-      workers.current = [pipe, hasher];
+      workers.current = [pipe];
       pipeline.current = pipe;
       const send = (msg: ToWorker) => pipe.postMessage(msg);
 
-      hasher.onmessage = (e: MessageEvent<{ sha256?: string }>) => {
-        send({ type: "videoHash", sha256: e.data.sha256 ?? "unknown" });
-        hasher.terminate();
-      };
-      hasher.postMessage({ file });
+      const hash = hashFile(file);
+      cancelHash.current = hash.cancel;
+      hash.promise.then(
+        (sha256) => send({ type: "videoHash", sha256 }),
+        () => send({ type: "videoHash", sha256: "unknown" }),
+      );
 
       pipe.onmessage = (e: MessageEvent<FromWorker>) => {
         const msg = e.data;
@@ -91,6 +96,7 @@ export function usePipeline() {
           }
         });
         if (msg.type === "done") {
+          void requestPersistentStorage();
           void compareWithReference(msg.summary, msg.track).then((comparison) =>
             setState((s) => (s.status === "done" && s.summary.analysisId === msg.summary.analysisId ? { ...s, comparison } : s)),
           );

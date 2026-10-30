@@ -18,8 +18,16 @@ import {
 import { MODELS, WASM_BASE } from "./assets.ts";
 import { PipelineError, demux, type DemuxedVideo } from "./demux.ts";
 import { inferenceScale, nextDetectTimestamp, percentile, uprightTransform } from "./frame-math.ts";
-import { removeAnalysis, writeOpfsFile } from "./opfs.ts";
+import { writeOpfsFile } from "./opfs.ts";
 import type { ErrorCode, FromWorker, PipelineOptions, RunSummary, Timings, ToWorker } from "./protocol.ts";
+import {
+  MANIFEST_FILE,
+  PTRK_FILE,
+  commitAnalysis,
+  lockName,
+  recordsFromTrack,
+  removeAnalysisDir,
+} from "../storage/analyses.ts";
 
 const post = (msg: FromWorker, transfer: Transferable[] = []) => self.postMessage(msg, transfer);
 
@@ -31,8 +39,12 @@ const videoHash = new Promise<string>((resolve) => {
 
 self.onmessage = (e: MessageEvent<ToWorker>) => {
   const msg = e.data;
-  if (msg.type === "start") void run(msg.file, msg.options);
-  else if (msg.type === "videoHash") resolveHash?.(msg.sha256);
+  if (msg.type === "start") {
+    const analysisId = crypto.randomUUID();
+    // The lock marks the OPFS folder as in use so startup clean-up in another tab skips it.
+    const work = () => run(analysisId, msg.file, msg.options);
+    void (navigator.locks ? navigator.locks.request(lockName(analysisId), work) : work());
+  } else if (msg.type === "videoHash") resolveHash?.(msg.sha256);
   else if (msg.type === "cancel") cancelled = true;
 };
 
@@ -51,8 +63,7 @@ async function loadModel(variant: PipelineOptions["model"]) {
   return { variant: m.variant, bytes, sha256 };
 }
 
-async function run(file: File, options: PipelineOptions) {
-  const analysisId = crypto.randomUUID();
+async function run(analysisId: string, file: File, options: PipelineOptions) {
   const t: Timings = {
     modelLoadMs: 0,
     modelInitMs: 0,
@@ -233,20 +244,10 @@ async function run(file: File, options: PipelineOptions) {
       analysis: null,
     };
     const hash = await recipeHash(recipe);
-    const manifest = {
-      schema: "manifest/1",
-      analysisId,
-      createdAt: track.header.createdAt,
-      app: { build: import.meta.env.MODE },
-      recipe,
-      recipeHash: hash,
-    };
     t.encodeMs = performance.now() - te;
 
     te = performance.now();
-    const ptrkPath = await writeOpfsFile(analysisId, "raw.ptrk.gz", ptrkGz);
-    // Manifest last: its presence marks the analysis as complete (02 §12).
-    await writeOpfsFile(analysisId, "manifest.json", new TextEncoder().encode(JSON.stringify(manifest, null, 2)));
+    const ptrkPath = await writeOpfsFile(analysisId, PTRK_FILE, ptrkGz);
     t.saveMs = performance.now() - te;
 
     const sorted = [...inferTimes].sort((a, b) => a - b);
@@ -270,15 +271,40 @@ async function run(file: File, options: PipelineOptions) {
       ptrkBytes: ptrkGz.length,
       recipeHash: hash,
       opfsPath: ptrkPath,
-      timings: t,
+      timings: { ...t },
     };
+    const manifest = {
+      schema: "manifest/1",
+      analysisId,
+      createdAt: track.header.createdAt,
+      app: { build: import.meta.env.MODE },
+      // Outside the recipe, so the file name and timings never change recipeHash.
+      source: { fileName: file.name },
+      recipe,
+      recipeHash: hash,
+      run: summary,
+    };
+    await writeOpfsFile(analysisId, MANIFEST_FILE, new TextEncoder().encode(JSON.stringify(manifest, null, 2)));
+    // The IndexedDB record is the commit marker (02 §12); recovery can rebuild it from the files above.
+    const records = recordsFromTrack({
+      id: analysisId,
+      header: track.header,
+      flags: track.flags,
+      createdAt: track.header.createdAt,
+      recipeHash: hash,
+      ptrkBytes: ptrkGz.length,
+      fileName: file.name,
+      summary,
+    });
+    await commitAnalysis(records.analysis, records.recording);
+
     const transfer = [track.timestamps.buffer, track.flags.buffer, track.kpState.buffer, track.image.buffer];
     if (track.world) transfer.push(track.world.buffer);
     if (track.presence) transfer.push(track.presence.buffer);
     post({ type: "done", summary, track }, transfer);
   } catch (err) {
     for (const f of queue) f.close();
-    await removeAnalysis(analysisId);
+    await removeAnalysisDir(analysisId).catch(() => undefined);
     const code: ErrorCode =
       err instanceof PipelineError ? err.code : ((err as { code?: ErrorCode }).code ?? "unknown");
     post({ type: "error", code, detail: err instanceof Error ? err.message : String(err) });

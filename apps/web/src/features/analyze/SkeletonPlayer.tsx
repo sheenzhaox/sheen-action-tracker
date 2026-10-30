@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CaretLeft, CaretRight, Pause, Play } from "@phosphor-icons/react";
 import type { PtrkTrack } from "@action-tracker/pose-core/io";
 import { Button } from "@/components/ui/button";
@@ -13,17 +13,25 @@ type VideoWithRvfc = HTMLVideoElement & {
   cancelVideoFrameCallback?: (id: number) => void;
 };
 
-export function SkeletonPlayer({ file, track }: { file: File; track: PtrkTrack }) {
+/**
+ * Skeleton overlay player. With `file` the skeleton is drawn over the video, synced per frame;
+ * without it (video not on this device, 08 §5.1) the skeleton plays alone on the stage from its own clock.
+ * Remount (change `key`) when switching between the two modes.
+ */
+export function SkeletonPlayer({ file, track, notice }: { file: File | null; track: PtrkTrack; notice?: ReactNode }) {
   const videoRef = useRef<VideoWithRvfc>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(0.5);
   const [frame, setFrame] = useState(0);
   const [visibleJoints, setVisibleJoints] = useState(0);
-  // Frame requested by the step buttons while the seek is still in flight.
+  // Frame requested by the step buttons while the video seek is still in flight.
   const pending = useRef<number | null>(null);
+  // Playback position (ms) in skeleton-only mode.
+  const clock = useRef(0);
   const [url, setUrl] = useState<string>();
   useEffect(() => {
+    if (!file) return;
     const u = URL.createObjectURL(file);
     setUrl(u);
     return () => URL.revokeObjectURL(u);
@@ -32,8 +40,14 @@ export function SkeletonPlayer({ file, track }: { file: File; track: PtrkTrack }
   const { displayWidth: W, displayHeight: H } = track.header.video;
   const ts = track.timestamps;
   const n = ts.length;
+  const startMs = ts[0] ?? 0;
+  const endMs = ts[n - 1] ?? 0;
   const draw = useMemo(() => makeSkeletonDrawer(track), [track]);
   const colors = useMemo(() => readSkeletonColors(), []);
+  const currentMs = useCallback(
+    () => (file ? (videoRef.current?.currentTime ?? 0) * 1000 : clock.current),
+    [file],
+  );
 
   const render = useCallback(
     (timeMs: number) => {
@@ -51,21 +65,21 @@ export function SkeletonPlayer({ file, track }: { file: File; track: PtrkTrack }
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const video = videoRef.current;
-    if (!canvas || !video) return;
+    if (!canvas) return;
     const ro = new ResizeObserver(() => {
       const dpr = window.devicePixelRatio || 1;
       canvas.width = Math.round(canvas.clientWidth * dpr);
       canvas.height = Math.round(canvas.clientHeight * dpr);
-      render(video.currentTime * 1000);
+      render(currentMs());
     });
     ro.observe(canvas);
     return () => ro.disconnect();
-  }, [render]);
+  }, [render, currentMs]);
 
+  // Video mode: draw on every presented frame.
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!file || !video) return;
     let id = 0;
     let raf = 0;
     const onFrame = (_now: number, meta: { mediaTime: number }) => {
@@ -90,13 +104,34 @@ export function SkeletonPlayer({ file, track }: { file: File; track: PtrkTrack }
       video.removeEventListener("seeked", onSeeked);
       video.removeEventListener("loadeddata", onSeeked);
     };
-  }, [render]);
+  }, [file, render]);
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.playbackRate = speed;
   }, [speed]);
 
+  // Skeleton-only mode: advance our own clock at the selected speed.
+  useEffect(() => {
+    if (file || !playing) return;
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      clock.current = Math.min(endMs, clock.current + (now - last) * speed);
+      last = now;
+      render(clock.current);
+      if (clock.current >= endMs) setPlaying(false);
+      else raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [file, playing, speed, endMs, render]);
+
   const toggle = () => {
+    if (!file) {
+      if (!playing && clock.current >= endMs) clock.current = startMs;
+      setPlaying((p) => !p);
+      return;
+    }
     const v = videoRef.current;
     if (!v) return;
     if (v.paused) void v.play();
@@ -104,10 +139,17 @@ export function SkeletonPlayer({ file, track }: { file: File; track: PtrkTrack }
   };
 
   const seekFrame = (i: number) => {
-    const v = videoRef.current;
-    if (!v || n === 0) return;
-    v.pause();
+    if (n === 0) return;
     const clamped = Math.max(0, Math.min(n - 1, i));
+    if (!file) {
+      setPlaying(false);
+      clock.current = ts[clamped] as number;
+      render(clock.current);
+      return;
+    }
+    const v = videoRef.current;
+    if (!v) return;
+    v.pause();
     pending.current = clamped;
     // Land just inside the frame so the decoder shows it, not its predecessor.
     v.currentTime = ((ts[clamped] as number) + 1) / 1000;
@@ -120,21 +162,24 @@ export function SkeletonPlayer({ file, track }: { file: File; track: PtrkTrack }
       <h2 id="player-title" className="font-display text-xl font-semibold">
         {t("player.title")}
       </h2>
+      {notice}
       <div
         className="relative mx-auto mt-3 w-full overflow-hidden rounded-xl bg-stage"
         style={{ aspectRatio: `${W} / ${H}`, maxHeight: "70dvh", maxWidth: `calc(70dvh * ${W / H})` }}
       >
-        <video
-          ref={videoRef}
-          src={url}
-          className="absolute inset-0 h-full w-full object-contain"
-          playsInline
-          muted
-          preload="auto"
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
-          onEnded={() => setPlaying(false)}
-        />
+        {file && (
+          <video
+            ref={videoRef}
+            src={url}
+            className="absolute inset-0 h-full w-full object-contain"
+            playsInline
+            muted
+            preload="auto"
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onEnded={() => setPlaying(false)}
+          />
+        )}
         <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true" />
         {visibleJoints === 0 && (
           <p className="absolute inset-x-0 bottom-2 mx-auto w-fit rounded-sm bg-black/60 px-2 py-1 text-sm text-white">

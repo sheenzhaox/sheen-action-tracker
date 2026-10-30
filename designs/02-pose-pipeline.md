@@ -347,8 +347,12 @@ raw 已经是"选定目标、可能降采样"后的数据，因此**不承诺**�
 - **开发服务器**：Vite dev 会给相对路径的动态 `import()` 加 `?import` 并拒绝 `public/` 文件，所以 `wasmBase` 用绝对 URL（`origin + /vendor/...`）；生产构建不受影响。
 - **raw PTRK 的 kpState**：模型返回的点在 raw 中一律为 `observed`，`visibility < 0.5` 的门控留在后处理（processed）阶段；回放时 `visibility < 0.5` 的点画空心点、骨线画虚线，只是显示规则。tasks-vision 1.2.0 会输出 presence，`hasPresence = true`。
 - **PTRK 读写放在 `@action-tracker/pose-core/io`** 入口（需要 `TextEncoder`、`CompressionStream`、`crypto.subtle`），主入口保持平台无关，分析包在类型层面就用不到这些 API。
-- **提交标记**：P1 还没有 IndexedDB，`manifest.json` 最后写入，作为完成标记；失败或取消时删除该分析目录。IndexedDB 记录在做历史列表时补上（第 12 节）。
+- **提交标记**（2026-10-30 本地历史实现后）：顺序为 `raw.ptrk.gz` → `manifest.json`（含 `source.fileName` 和 `run` 运行摘要，两者都在 recipe 之外，不影响 `recipeHash`）→ IndexedDB 记录（同一事务写 `recordings` 与 `analyses`）。IndexedDB 记录是完成标记。管线运行期间持有 Web Lock `action-tracker:analysis:<id>`。
+  - **启动对账**（对第 12 节规则的细化）：OPFS 中没有记录的目录，若持有锁（其他标签页正在运行）则跳过；若 `manifest.json` 合法且 `raw.ptrk.gz` 通过 PTRK 读取校验，则**重建记录**（标"Recovered"，覆盖"两次写入之间崩溃"的情况）；否则删除。有记录但文件已不在的（系统清理存储），列表中标"Pose data missing"，只能删除。
+  - **删除顺序**：先删 OPFS 目录，再在一个事务里删分析记录（及无其他分析的视频记录）。先删记录会让对账把它恢复回来。
+  - OPFS 目录仍是扁平的 `analyses/<id>/`，不按 04 第 6 节的 `/{recordingId}/{analysisId}/` 分层：视频身份按 SHA-256 在 IndexedDB 中去重，扁平目录让对账更简单。
 - **recipeHash** 不含 `analysisId`、`createdAt`，相同输入和配方得到相同哈希。
 - 暂未实现：多人跟踪（`numPoses = 1`，自动单人）、后处理与 processed PTRK、推理中途 GPU→CPU 回退（只在初始化时回退）、暂停/恢复、路径 B 回退解码。
+- **本地历史**（2026-10-30）：底部标签栏"Records / Import / Settings"（08 第 3 节）。Records 列出 IndexedDB 中的分析；打开后从 OPFS 读取 PTRK。原视频不保存：先**只播放骨架**（自带时钟，可播放、逐帧、变速），用户可"Choose original video"，按 SHA-256 校验是同一视频后恢复叠加回放。首次保存后调用 `navigator.storage.persist()`。代码在 `apps/web/src/storage/`（`idb.ts`、`analyses.ts`）和 `src/features/records/`。
 
 **准确性核对**（桌面 Chromium，sample1 的 360 × 640 H.264 副本）：浏览器 full 模型与离线 Python heavy 模型相比，232/232 帧都检出，13 个身体关键点平均相差 2.8 px（画面高度的 0.44%），P95 6.4 px；时间戳差 ≤ 0.5 ms；视频 SHA-256 与本地文件一致。说明旋转、缩放、坐标换算和时间戳都正确。

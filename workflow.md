@@ -5,7 +5,7 @@
 ## 当前状态
 
 - **阶段**：**P1 本地原型进行中**（2026-10-30 起）。P0 设计 v0.3 + UI/UX v0.2 已定稿；Q1–Q13 全部回应；UI 方案 **C** + shadcn/ui + Tailwind（ADR-014）。
-- **P1 进度**：脚手架 ✅ → iPhone 诊断 ✅ → **sample1 端到端 ✅** → iPhone 实测 4K H.264 ✅（1.64×）→ **iPhone 原始 sample1.MOV（HEVC HDR、竖屏）✅** → 性能测试设置 ✅ → **待：iPhone 上各设置对比**。
+- **P1 进度**：脚手架 ✅ → iPhone 诊断 ✅ → **sample1 端到端 ✅** → iPhone 实测 4K H.264 ✅（1.64×）→ **iPhone 原始 sample1.MOV（HEVC HDR、竖屏）✅** → 性能测试设置 ✅ → **本地历史 Records ✅** → 待：iPhone 上各设置对比；后处理；单腿蹲测量。
 - **云资源**：1 个 Worker `action-tracker`，地址 https://action-tracker.sheenzhaox.workers.dev（2026-10-30 部署，用户授权；无 D1 / R2 / Access）。代码在公开 GitHub 仓库 [sheenzhaox/sheen-action-tracker](https://github.com/sheenzhaox/sheen-action-tracker)（`main`）
 - **UI 原型**：界面只做英文；shadcn 风格**已选 [C · Mobile focus](designs/mockups/mock-ui-shadcn-c.html)**（A [Workbench](designs/mockups/mock-ui-shadcn.html) / B [Library + Session](designs/mockups/mock-ui-shadcn-b.html) 仅作参考）（见 [08 第 11.2 节](designs/08-ui-ux.md)）；**骨架画在真实身体上**（C 的单腿蹲已用 sample1 真实视频 + 离线 MediaPipe 结果），A/B 与网球模式仍为合成示意。
 - **设计文档**：[designs/README.md](designs/README.md)
@@ -53,6 +53,30 @@
 | Q15 | 开发环境：是否在系统上启用 `pnpm`（`corepack enable pnpm`）？~~何时做第一次 git 提交？~~ | 日常命令 | 暂用 `corepack pnpm ...`；git 部分 ✅ 2026-10-30 已提交并推送到公开仓库 |
 
 ## 日志
+
+### 2026-10-30 · 本地历史（Records）
+
+用户确认 sample1.MOV 在 iPhone 上正常，并选择下一步做本地历史列表。
+
+**实现**（设计依据 02 第 12 节、04 第 6 节、08 第 3 / 5.1 节；细节见 [02 第 13 节](designs/02-pose-pipeline.md)）：
+- **底部标签栏** Records / Import / Settings（诊断面板移到 Settings）。各标签页挂载后不再卸载，切换标签不会中断正在运行的分析；Settings 首次打开时才挂载，诊断检测不在启动时运行。
+- **IndexedDB** `action-tracker` v1：`recordings`（同一视频按 SHA-256 去重）+ `analyses`。管线写完 PTRK 和 manifest 后，在同一事务里写入两条记录，记录即完成标记。管线运行时持有 Web Lock。
+- **启动对账**：没有记录的 OPFS 目录，如果文件完整就重建记录（标 Recovered），否则删除；正在运行（持锁）的跳过。有记录但文件已被系统清除的，标 Pose data missing。
+- **Records 列表 → 详情**：先只播放骨架（不需要原视频，可播放、逐帧、变速），"Choose original video"按 SHA-256 校验，匹配后恢复叠加回放，不匹配时提示。详情页显示保存的 Run report 和与 Full · 1280 的差异；删除需二次确认，先删文件再删记录。
+- 首次保存后申请持久化存储（`navigator.storage.persist()`）。
+- 性能对比的参照查找改为查 IndexedDB 索引，不再遍历 OPFS 中的 manifest。
+- 测试：新增 `fake-indexeddb`（Apache-2.0，devDependency），存储层 5 个单测（记录生成、unknown 哈希不合并、列表排序与视频去重、参照查找、删最后一个分析时才删视频记录）。共 48 个测试通过。
+
+**浏览器验证**（桌面，390 × 844）：
+- 孤儿目录被清理；分析完成后出现在 Records 中。
+- 只看骨架时播放和逐帧都正常；选错文件（package.json）被拒绝；选原视频后叠加回放恢复，逐帧定位准确（39 次下一帧 → 第 40 帧）。
+- 手动删掉一条 IndexedDB 记录后刷新，该分析被恢复，标 Recovered，报告完整。
+- 删除后文件和记录都清空，焦点回到 Records 标题；无控制台错误。
+- 已部署，Version `cb21366b`。
+
+**坑**：PowerShell 5 的 `Set-Content` 默认按系统代码页写文件，`·` 等非 ASCII 字符会变成无效 UTF-8，Vite / rolldown 报 "stream did not contain valid UTF-8"。已修复 `compare.ts`，并在 AGENTS 中写明：改源文件用编辑工具，或用 `[IO.File]::WriteAllText(..., UTF8Encoding($false))` / Node。
+
+**注意**：这次上线前，iPhone 上已有的分析目录（旧版只有 manifest，没有记录）会在第一次打开 Records 时被恢复，标 Recovered。旧 manifest 里没有运行摘要，所以这些分析没有 Run report，文件名显示为 "Recovered analysis"。
 
 ### 2026-10-30 · iPhone 上原始 sample1.MOV 跑通
 

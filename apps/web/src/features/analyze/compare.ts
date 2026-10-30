@@ -1,5 +1,6 @@
-import { KP_STATE, PTRK_MISSING, readPtrkFile, type PtrkTrack } from "@action-tracker/pose-core/io";
+import { KP_STATE, PTRK_MISSING, type PtrkTrack } from "@action-tracker/pose-core/io";
 import { REFERENCE_SETTING } from "@/pipeline/assets";
+import { findAnalysis, loadTrack } from "@/storage/analyses";
 
 /** Body joints used for accuracy comparisons (face points excluded). */
 export const COMPARE_JOINTS = [
@@ -79,41 +80,11 @@ export function compareTracks(a: PtrkTrack, b: PtrkTrack): TrackDiff | null {
   };
 }
 
-interface StoredManifest {
-  analysisId: string;
-  createdAt: string;
-  recipe: {
-    input: { videoSha256: string };
-    inference: { providerId: string; inferenceLongEdge: number };
-  };
-}
-
-export const isReferenceRecipe = (m: StoredManifest) =>
-  m.recipe.inference.providerId.includes(`pose_landmarker_${REFERENCE_SETTING.model}@`) &&
-  m.recipe.inference.inferenceLongEdge === REFERENCE_SETTING.inferenceLongEdge;
-
-/** Latest completed full@1280 analysis of the same video stored on this device, if any. */
+/** Latest Full · 1280 analysis of the same video on this device (IndexedDB), if any. */
 export async function loadReferenceTrack(videoSha256: string, excludeId: string): Promise<PtrkTrack | null> {
-  if (!videoSha256 || videoSha256 === "unknown") return null;
   try {
-    const root = await navigator.storage.getDirectory();
-    const analyses = await root.getDirectoryHandle("analyses");
-    let best: { m: StoredManifest; dir: FileSystemDirectoryHandle } | null = null;
-    for await (const [name, handle] of (analyses as unknown as AsyncIterable<[string, FileSystemHandle]>)) {
-      if (name === excludeId || handle.kind !== "directory") continue;
-      const dir = handle as FileSystemDirectoryHandle;
-      const m = await dir
-        .getFileHandle("manifest.json")
-        .then((f) => f.getFile())
-        .then((f) => f.text())
-        .then((s) => JSON.parse(s) as StoredManifest)
-        .catch(() => null);
-      if (!m || m.recipe?.input?.videoSha256 !== videoSha256 || !isReferenceRecipe(m)) continue;
-      if (!best || m.createdAt > best.m.createdAt) best = { m, dir };
-    }
-    if (!best) return null;
-    const file = await (await best.dir.getFileHandle("raw.ptrk.gz")).getFile();
-    return await readPtrkFile(new Uint8Array(await file.arrayBuffer()));
+    const ref = await findAnalysis(videoSha256, REFERENCE_SETTING, excludeId);
+    return ref ? await loadTrack(ref.id) : null;
   } catch {
     return null;
   }
